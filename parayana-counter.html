@@ -389,6 +389,52 @@
     to { transform: translateY(0); opacity: 1; }
   }
 
+  /* Search bar */
+  .search-wrap {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    color: #8B4513; opacity: 0.6;
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    padding: 11px 14px 11px 36px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    background: rgba(255, 250, 240, 0.75);
+    border: 1px solid rgba(139, 69, 19, 0.22);
+    border-radius: 2px;
+    color: #2B1810;
+    outline: none;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset;
+  }
+  .search-input:focus { border-color: #9C2A12; }
+  .search-input::placeholder { color: #8B4513; opacity: 0.55; font-style: italic; }
+  .search-clear {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    color: #8B4513; opacity: 0.5;
+    cursor: pointer; font-size: 1.1rem; line-height: 1;
+    padding: 4px;
+  }
+  .search-count {
+    font-size: 0.75rem;
+    color: #8B4513;
+    font-style: italic;
+    text-align: right;
+    margin-top: -8px;
+    margin-bottom: 10px;
+    opacity: 0.7;
+  }
+
   /* Import modal */
   .import-drop {
     border: 2px dashed rgba(139, 69, 19, 0.35);
@@ -545,9 +591,11 @@ let addInputValue = '';
 let syncStatus = 'idle'; // 'idle' | 'syncing' | 'error'
 let lastSyncAt = 0;
 let elapsedStr = '—';
+let searchQuery = '';
 let showImportModal = false;
-let importStage = 'upload'; // 'upload' | 'processing' | 'review'
+let importStage = 'upload'; // 'upload' | 'processing' | 'review' | 'manual'
 let importPreview = []; // [{name, count, include}]
+let importRawText = '';
 
 const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const HEADERS = {
@@ -737,16 +785,36 @@ function renderEmpty() {
   `;
 }
 
+function renderSearch(total) {
+  const q = searchQuery.trim();
+  return `
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="search-input" id="search-input" type="text" placeholder="Search chanter…" value="${esc(q)}" autocomplete="off" />
+      ${q ? `<button class="search-clear" data-action="clearSearch">×</button>` : ''}
+    </div>
+    ${q ? `<p class="search-count">${total} of ${state.names.length} chanters</p>` : ''}
+  `;
+}
+
 function renderLeaderboard() {
+  const q = searchQuery.trim().toLowerCase();
   const sorted = [...state.names].sort((a, b) => {
     const d = (state.counts[b] || 0) - (state.counts[a] || 0);
     if (d !== 0) return d;
     return (state.joinedOrder[a] || 0) - (state.joinedOrder[b] || 0);
   });
+  const filtered = q ? sorted.filter(n => n.toLowerCase().includes(q)) : sorted;
   const topCount = sorted.length ? state.counts[sorted[0]] || 0 : 0;
+  const noResults = q && filtered.length === 0;
   return `
+    ${renderSearch(filtered.length)}
     <section class="leaderboard">
-      ${sorted.map((name, idx) => {
+      ${noResults
+        ? `<div class="empty"><p class="italic">No chanters matching "${esc(q)}".</p></div>`
+        : filtered.map((name, idx) => {
         const count = state.counts[name] || 0;
         const isLeader = idx === 0 && count > 0 && count === topCount;
         const pulse = pulseTarget === name ? 'pulse' : '';
@@ -829,11 +897,15 @@ function renderImportModal() {
   let body = '';
   if (importStage === 'upload') {
     body = `
+      <div style="margin-bottom:14px;display:flex;gap:8px;">
+        <button class="btn-secondary" style="flex:1" data-action="showImportPhoto">📷 PHOTO</button>
+        <button class="btn-secondary" style="flex:1" data-action="showImportManual">✏️ TYPE IT IN</button>
+      </div>
       <div class="import-drop" id="import-drop">
-        <input type="file" accept="image/*" capture="environment" id="import-file-input" />
+        <input type="file" accept="image/*" id="import-file-input" />
         <div class="import-drop-icon">📷</div>
-        <p>Tap to upload or take a photo</p>
-        <p class="muted">JPG, PNG — of your paper list</p>
+        <p>Tap to choose a photo</p>
+        <p class="muted">Works best with printed/typed lists. Handwriting may vary.</p>
       </div>
     `;
   } else if (importStage === 'processing') {
@@ -843,6 +915,15 @@ function renderImportModal() {
         <p>Reading your list…</p>
       </div>
     `;
+  } else if (importStage === 'manual') {
+    body = `
+      <p style="font-style:italic;color:#5C2E0A;font-size:0.9rem;margin-bottom:10px;">One entry per line — <strong>Name, count</strong> (e.g. <em>Padmaja Mami, 5</em>)</p>
+      <textarea id="manual-input" rows="8" style="width:100%;font-family:'Cormorant Garamond',serif;font-size:1rem;background:rgba(255,250,240,0.7);border:1px solid rgba(139,69,19,0.3);border-radius:2px;color:#2B1810;padding:10px 12px;outline:none;resize:vertical;">${esc(importRawText)}</textarea>
+      <div class="import-actions" style="margin-top:12px;">
+        <button class="btn-secondary" data-action="retakePhoto">BACK</button>
+        <button class="btn-primary" data-action="parseManual">PREVIEW</button>
+      </div>
+    `;
   } else {
     const rows = importPreview.length ? importPreview.map((r, i) => `
       <tr>
@@ -850,25 +931,31 @@ function renderImportModal() {
         <td><input type="text" data-import-name="${i}" value="${esc(r.name)}" /></td>
         <td style="text-align:right"><input type="number" data-import-count="${i}" value="${r.count}" min="0" /></td>
       </tr>
-    `).join('') : `<tr><td colspan="3" class="import-empty">Nothing could be parsed. Edit manually below or retake the photo.</td></tr>`;
+    `).join('') : `<tr><td colspan="3" class="import-empty">Could not parse any entries — try "Type it in" instead.</td></tr>`;
     body = `
       <div class="import-review">
         <table id="import-table">
           <thead><tr><th></th><th>Name</th><th style="text-align:right">Count</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
+        ${importRawText && importPreview.length === 0 ? `
+          <details style="margin-bottom:12px;">
+            <summary style="font-size:0.8rem;color:#8B4513;cursor:pointer;font-style:italic;">Show raw OCR text</summary>
+            <pre style="font-size:0.75rem;color:#5C2E0A;white-space:pre-wrap;margin-top:8px;background:rgba(139,69,19,0.06);padding:8px;border-radius:2px;">${esc(importRawText)}</pre>
+          </details>
+        ` : ''}
         <div class="import-actions">
-          <button class="btn-secondary" data-action="retakePhoto">RETAKE</button>
-          <button class="btn-primary" data-action="commitImport">ADD TO TALLY</button>
+          <button class="btn-secondary" data-action="retakePhoto">BACK</button>
+          <button class="btn-primary" data-action="commitImport" ${!importPreview.length ? 'disabled' : ''}>ADD TO TALLY</button>
         </div>
       </div>
     `;
   }
   return `
     <div class="modal-overlay" data-action="closeImport">
-      <div class="modal" data-stop>
+      <div class="modal" data-stop style="max-height:90vh;overflow-y:auto;">
         <div class="modal-header">
-          <h2>IMPORT FROM PHOTO</h2>
+          <h2>IMPORT LIST</h2>
           <button class="modal-close" data-action="closeImport" aria-label="Close">×</button>
         </div>
         <div class="modal-body">${body}</div>
@@ -912,6 +999,18 @@ function render() {
     ${showAddForm ? renderModal() : ''}
     ${showImportModal ? renderImportModal() : ''}
   `;
+
+  // Attach search listener and restore focus
+  const si = document.getElementById('search-input');
+  if (si) {
+    si.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      const pos = si.selectionStart;
+      render();
+      const si2 = document.getElementById('search-input');
+      if (si2) { si2.focus(); si2.setSelectionRange(pos, pos); }
+    });
+  }
 
   if (showAddForm) {
     const input = document.getElementById('add-input');
@@ -1001,23 +1100,51 @@ function handleAction(action, name) {
     case 'confirmReset':
       resetSession();
       break;
+    case 'clearSearch':
+      searchQuery = '';
+      render();
+      break;
     case 'showImport':
       showImportModal = true;
       importStage = 'upload';
       importPreview = [];
+      importRawText = '';
       render();
       break;
     case 'closeImport':
       showImportModal = false;
       importStage = 'upload';
       importPreview = [];
+      importRawText = '';
+      render();
+      break;
+    case 'showImportPhoto':
+      importStage = 'upload';
+      importPreview = [];
+      render();
+      break;
+    case 'showImportManual':
+      importStage = 'manual';
+      importPreview = [];
+      importRawText = '';
       render();
       break;
     case 'retakePhoto':
       importStage = 'upload';
       importPreview = [];
+      importRawText = '';
       render();
       break;
+    case 'parseManual': {
+      const ta = document.getElementById('manual-input');
+      const txt = ta ? ta.value : '';
+      importRawText = txt;
+      importPreview = parseOCRText(txt);
+      importStage = 'review';
+      render();
+      attachImportReviewListeners();
+      break;
+    }
     case 'commitImport':
       commitImport();
       break;
@@ -1056,18 +1183,13 @@ async function processImage(file) {
   importStage = 'processing';
   render();
   try {
-    const { createWorker } = Tesseract;
-    const worker = await createWorker('eng');
-    const { data: { text } } = await worker.recognize(file);
-    await worker.terminate();
+    const result = await Tesseract.recognize(file, 'eng');
+    const text = result.data.text || '';
+    importRawText = text;
     importPreview = parseOCRText(text);
-    if (importPreview.length === 0) {
-      // Show all lines for manual entry if nothing parsed
-      importPreview = text.split('\n').map(l => l.trim()).filter(l => l.length > 1)
-        .map(name => ({ name, count: 0, include: true }));
-    }
   } catch (e) {
     console.error('OCR failed', e);
+    importRawText = '';
     importPreview = [];
   }
   importStage = 'review';
