@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#EDD9A8" />
+<title>Vishnu Sahasranama Parayana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Tiro+Devanagari+Sanskrit&family=Cormorant+SC:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100vh; }
+  body {
+    font-family: 'Cormorant Garamond', serif;
+    background: radial-gradient(ellipse at top, #F8E9C8 0%, #EDD9A8 55%, #E2C684 100%);
+    background-attachment: fixed;
+    color: #2B1810;
+    overflow-x: hidden;
+    position: relative;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .deva { font-family: 'Tiro Devanagari Sanskrit', serif; }
+  .sc { font-family: 'Cormorant SC', serif; letter-spacing: 0.18em; }
+  .number { font-feature-settings: 'lnum' 1; font-variant-numeric: lining-nums; }
+
+  /* Floating ॐ background */
+  .bg-om {
+    position: fixed; pointer-events: none; user-select: none;
+    font-family: 'Tiro Devanagari Sanskrit', serif;
+    color: #8B4513; opacity: 0.07;
+    z-index: 0;
+  }
+  .bg-om-1 { top: 8%; left: -3%; font-size: 18rem; animation: floatOm 8s ease-in-out infinite; }
+  .bg-om-2 { bottom: 4%; right: -4%; font-size: 14rem; animation: floatOm 8s ease-in-out infinite; animation-delay: 4s; }
+  @keyframes floatOm {
+    0%,100% { transform: translateY(0) rotate(0deg); opacity: 0.06; }
+    50% { transform: translateY(-12px) rotate(2deg); opacity: 0.10; }
+  }
+
+  /* Grain texture */
+  .grain {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.30; mix-blend-mode: multiply;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 140px;
+  }
+
+  /* Header */
+  header { text-align: center; margin-bottom: 28px; }
+  .ornament-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+  .ornament {
+    width: 110px; height: 22px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 24'%3E%3Cg fill='none' stroke='%238B4513' stroke-width='1' opacity='0.55'%3E%3Cline x1='0' y1='12' x2='52' y2='12'/%3E%3Cline x1='88' y1='12' x2='140' y2='12'/%3E%3Ccircle cx='70' cy='12' r='4'/%3E%3Ccircle cx='58' cy='12' r='1.5' fill='%238B4513'/%3E%3Ccircle cx='82' cy='12' r='1.5' fill='%238B4513'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center;
+  }
+  .ornament.flip { transform: scaleX(-1); }
+  .om-mark { font-size: 2rem; color: #9C2A12; }
+  .title-deva { font-size: clamp(1.75rem, 7vw, 2.5rem); color: #3A1F0F; line-height: 1.1; margin-bottom: 4px; }
+  .subtitle { font-size: 0.78rem; color: #8B4513; letter-spacing: 0.25em; text-transform: uppercase; }
+
+  /* Hero card */
+  .hero {
+    position: relative;
+    background: linear-gradient(135deg, rgba(255,250,240,0.85) 0%, rgba(248,233,200,0.7) 100%);
+    border: 1px solid rgba(139, 69, 19, 0.25);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 24px -12px rgba(139, 69, 19, 0.35);
+    padding: 36px 24px;
+    text-align: center;
+    margin-bottom: 24px;
+    border-radius: 2px;
+  }
+  .hero-label {
+    font-size: 0.72rem;
+    color: #8B4513;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-family: 'Cormorant SC', serif;
+  }
+  .hero-number {
+    font-size: clamp(4.5rem, 16vw, 7.5rem);
+    color: #3A1F0F;
+    font-weight: 300;
+    line-height: 1;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    transition: opacity 0.4s ease;
+  }
+  .hero-number.loading { opacity: 0.3; }
+  .hero-stats {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    font-size: 0.95rem;
+    color: #5C2E0A;
+  }
+  .hero-stat { display: inline-flex; align-items: center; gap: 6px; }
+  .hero-stat svg { width: 14px; height: 14px; opacity: 0.7; }
+  .hero-stat-sep { opacity: 0.3; }
+
+  /* Status indicator */
+  .status {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-size: 0.7rem;
+    color: #8B4513;
+    opacity: 0.55;
+    font-style: italic;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #4A7C2A; box-shadow: 0 0 6px rgba(74, 124, 42, 0.6);
+  }
+  .status-dot.syncing { background: #C89B3C; animation: blink 1s ease-in-out infinite; }
+  .status-dot.error { background: #9C2A12; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 48px 20px;
+    animation: slideUp 0.4s ease-out;
+  }
+  .empty p { color: #5C2E0A; font-size: 1.05rem; margin-bottom: 6px; }
+  .empty p.muted { color: #8B4513; margin-bottom: 24px; }
+  .empty p.italic { font-style: italic; }
+
+  /* Buttons */
+  .btn-primary {
+    background: linear-gradient(135deg, #9C2A12 0%, #B8391C 100%);
+    color: #F8E9C8;
+    border: none;
+    padding: 14px 28px;
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    border-radius: 2px;
+    box-shadow: 0 4px 14px -4px rgba(156, 42, 18, 0.6);
+    transition: transform 0.1s;
+  }
+  .btn-primary:active { transform: scale(0.96); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Leaderboard cards */
+  .leaderboard { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    display: flex;
+    background: rgba(255, 250, 240, 0.75);
+    border: 1px solid rgba(139, 69, 19, 0.18);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset;
+    border-radius: 2px;
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+  }
+  .card.leader {
+    border-color: rgba(156, 42, 18, 0.35);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 6px 18px -8px rgba(156, 42, 18, 0.3);
+  }
+  .card-body {
+    flex: 1;
+    padding: 14px 16px;
+    min-width: 0;
+  }
+  .card-name {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 1.25rem;
+    color: #2B1810;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card.leader .card-name { font-weight: 600; }
+  .flame {
+    width: 14px; height: 14px;
+    color: #9C2A12;
+    flex-shrink: 0;
+  }
+  .card-count-row { display: flex; align-items: baseline; gap: 8px; }
+  .card-count {
+    font-size: 2.5rem;
+    color: #3A1F0F;
+    font-weight: 300;
+    line-height: 1;
+  }
+  .card-count.pulse { animation: pulseUp 0.5s ease-out; }
+  .card-unit { color: #8B4513; font-style: italic; font-size: 0.9rem; }
+  .card-actions {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid rgba(139, 69, 19, 0.15);
+  }
+  .btn-plus {
+    background: linear-gradient(135deg, #9C2A12 0%, #B8391C 100%);
+    color: #F8E9C8;
+    border: none;
+    padding: 0 22px;
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-width: 92px; min-height: 78px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    flex: 1;
+  }
+  .btn-plus:active { transform: scale(0.94); }
+  .btn-plus .plus-sym { font-size: 1.5rem; line-height: 1; font-weight: 300; }
+  .btn-minus {
+    background: rgba(139, 69, 19, 0.06);
+    border: none;
+    border-top: 1px solid rgba(139, 69, 19, 0.15);
+    color: #8B4513;
+    padding: 8px 22px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .btn-minus:active { transform: scale(0.94); }
+  .btn-minus:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Floating add button */
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #3A1F0F;
+    color: #F8E9C8;
+    border: none;
+    padding: 14px 22px;
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    border-radius: 2px;
+    box-shadow: 0 8px 24px -6px rgba(58, 31, 15, 0.5);
+    display: flex; align-items: center; gap: 8px;
+    z-index: 15;
+    transition: transform 0.1s;
+  }
+  .fab:active { transform: scale(0.96); }
+  .fab svg { width: 16px; height: 16px; }
+
+  /* Footer */
+  .footer { text-align: center; margin-top: 40px; }
+  .footer .ornament { margin: 0 auto 16px; opacity: 0.6; }
+  .reset-link {
+    background: none; border: none;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 0.78rem;
+    color: #5C2E0A;
+    opacity: 0.6;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .reset-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .reset-confirm {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 8px 16px;
+    background: rgba(156, 42, 18, 0.08);
+    border: 1px solid rgba(156, 42, 18, 0.25);
+    border-radius: 2px;
+  }
+  .reset-confirm span { font-style: italic; font-size: 0.95rem; color: #3A1F0F; }
+  .reset-confirm button {
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    padding: 6px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: none;
+  }
+  .reset-yes { background: #9C2A12; color: #F8E9C8; }
+  .reset-no { background: transparent; color: #5C2E0A; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(58, 31, 15, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 30;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 16px;
+  }
+  @media (min-width: 520px) {
+    .modal-overlay { align-items: center; }
+  }
+  .modal {
+    width: 100%; max-width: 420px;
+    background: linear-gradient(135deg, #FAF3E1 0%, #F4E6BE 100%);
+    border: 1px solid rgba(139, 69, 19, 0.3);
+    box-shadow: 0 20px 50px -10px rgba(58, 31, 15, 0.4);
+    border-radius: 2px;
+    animation: slideUp 0.3s ease-out;
+  }
+  .modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(139, 69, 19, 0.2);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-header h2 {
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    color: #3A1F0F;
+    font-weight: 600;
+  }
+  .modal-close {
+    background: none; border: none; cursor: pointer; color: #8B4513;
+    font-size: 1.4rem; line-height: 1; padding: 4px;
+  }
+  .modal-body { padding: 24px; }
+  .modal-body label {
+    display: block;
+    font-style: italic;
+    font-size: 0.95rem;
+    color: #5C2E0A;
+    margin-bottom: 10px;
+  }
+  .modal-body input {
+    width: 100%;
+    padding: 12px 16px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    background: rgba(255, 250, 240, 0.7);
+    border: 1px solid rgba(139, 69, 19, 0.3);
+    border-radius: 2px;
+    color: #2B1810;
+    outline: none;
+  }
+  .modal-body input:focus { border-color: #9C2A12; }
+  .modal-body .btn-primary {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+  }
+
+  /* Setup error */
+  .setup-error {
+    max-width: 480px;
+    margin: 80px auto;
+    padding: 32px;
+    background: rgba(255, 250, 240, 0.85);
+    border: 1px solid rgba(156, 42, 18, 0.35);
+    border-radius: 2px;
+    box-shadow: 0 8px 24px -8px rgba(139, 69, 19, 0.35);
+  }
+  .setup-error h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    color: #9C2A12;
+    margin-bottom: 16px;
+  }
+  .setup-error p { margin-bottom: 12px; color: #3A1F0F; }
+  .setup-error code {
+    background: rgba(139, 69, 19, 0.1);
+    padding: 2px 6px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+    border-radius: 2px;
+  }
+
+  /* Animations */
+  @keyframes pulseUp {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); color: #9C2A12; }
+    100% { transform: scale(1); }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<!-- ========================================================================
+     CONFIGURATION — FILL IN BEFORE DEPLOYING
+     ======================================================================== -->
+<script>
+  // Replace these with your JSONBin values.
+  // Bin ID: from the URL of your bin (e.g. 652abc123def456)
+  // Master Key: from JSONBin → API Keys → X-Master-Key
+  const BIN_ID = "6a1a5cef21f9ee59d29c8ffd";
+  const MASTER_KEY = "$2a$10$8zdYxRdWcZfNWReP5skKdu4FiCtBvSfkuE461XPN0hYd48BlvvynW";
+
+  // Polling interval: how often to check for updates from other devices.
+  // 8 seconds is a good balance for the JSONBin free tier (10k requests/month).
+  // Lower = fresher data but more API calls. Higher = staler but lighter.
+  const POLL_MS = 8000;
+</script>
+
+<div class="bg-om bg-om-1">ॐ</div>
+<div class="bg-om bg-om-2">ॐ</div>
+<div class="grain"></div>
+<div id="app"></div>
+
+<script>
+// ============================================================================
+// STATE
+// ============================================================================
+let state = {
+  names: [],
+  counts: {},
+  joinedOrder: {},
+  startTime: null,
+  lastModified: 0,
+};
+let loading = true;
+let lastSaveAt = 0;
+let pulseTarget = null;
+let pulseTimeout = null;
+let showAddForm = false;
+let confirmReset = false;
+let addInputValue = '';
+let syncStatus = 'idle'; // 'idle' | 'syncing' | 'error'
+let lastSyncAt = 0;
+let elapsedStr = '—';
+
+const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Master-Key': MASTER_KEY,
+};
+
+// ============================================================================
+// API
+// ============================================================================
+async function loadFromBin() {
+  if (Date.now() - lastSaveAt < 3000) return;
+  syncStatus = 'syncing';
+  renderStatusOnly();
+  try {
+    const res = await fetch(`${API_BASE}/latest`, { headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const record = data.record || {};
+    const fresh = {
+      names: Array.isArray(record.names) ? record.names : [],
+      counts: record.counts && typeof record.counts === 'object' ? record.counts : {},
+      joinedOrder: record.joinedOrder && typeof record.joinedOrder === 'object' ? record.joinedOrder : {},
+      startTime: record.startTime || null,
+      lastModified: record.lastModified || 0,
+    };
+    if (fresh.lastModified >= (state.lastModified || 0)) {
+      state = fresh;
+    }
+    syncStatus = 'idle';
+    lastSyncAt = Date.now();
+  } catch (e) {
+    console.error('Load failed', e);
+    syncStatus = 'error';
+  } finally {
+    if (loading) {
+      loading = false;
+    }
+    render();
+  }
+}
+
+async function saveToBin() {
+  state.lastModified = Date.now();
+  lastSaveAt = Date.now();
+  syncStatus = 'syncing';
+  renderStatusOnly();
+  try {
+    const res = await fetch(API_BASE, {
+      method: 'PUT',
+      headers: HEADERS,
+      body: JSON.stringify(state),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    syncStatus = 'idle';
+    lastSyncAt = Date.now();
+  } catch (e) {
+    console.error('Save failed', e);
+    syncStatus = 'error';
+  }
+  renderStatusOnly();
+}
+
+// ============================================================================
+// ACTIONS
+// ============================================================================
+function addName() {
+  if (loading) return;
+  const name = addInputValue.trim();
+  if (!name) return;
+  if (state.names.includes(name)) {
+    addInputValue = '';
+    showAddForm = false;
+    render();
+    return;
+  }
+  state = {
+    ...state,
+    names: [...state.names, name],
+    counts: { ...state.counts, [name]: 0 },
+    joinedOrder: { ...state.joinedOrder, [name]: Date.now() },
+    startTime: state.startTime || Date.now(),
+  };
+  addInputValue = '';
+  showAddForm = false;
+  saveToBin();
+  render();
+}
+
+function increment(name) {
+  if (loading) return;
+  pulseTarget = name;
+  if (pulseTimeout) clearTimeout(pulseTimeout);
+  pulseTimeout = setTimeout(() => { pulseTarget = null; render(); }, 500);
+  state = {
+    ...state,
+    counts: { ...state.counts, [name]: (state.counts[name] || 0) + 1 },
+  };
+  saveToBin();
+  render();
+}
+
+function decrement(name) {
+  if (loading) return;
+  if ((state.counts[name] || 0) <= 0) return;
+  state = {
+    ...state,
+    counts: { ...state.counts, [name]: Math.max(0, (state.counts[name] || 0) - 1) },
+  };
+  saveToBin();
+  render();
+}
+
+function resetSession() {
+  state = { names: [], counts: {}, joinedOrder: {}, startTime: Date.now(), lastModified: Date.now() };
+  confirmReset = false;
+  saveToBin();
+  render();
+}
+
+// ============================================================================
+// RENDER
+// ============================================================================
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
+function renderHeader() {
+  return `
+    <header>
+      <div class="ornament-row">
+        <div class="ornament"></div>
+        <span class="om-mark deva">ॐ</span>
+        <div class="ornament flip"></div>
+      </div>
+      <h1 class="deva title-deva">श्री विष्णु सहस्रनाम</h1>
+      <p class="subtitle sc">Parayana Tally</p>
+    </header>
+  `;
+}
+
+function renderStatus() {
+  if (syncStatus === 'syncing') return `<span class="status"><span class="status-dot syncing"></span>syncing</span>`;
+  if (syncStatus === 'error') return `<span class="status"><span class="status-dot error"></span>offline</span>`;
+  if (lastSyncAt) {
+    const ago = Math.floor((Date.now() - lastSyncAt) / 1000);
+    if (ago < 60) return `<span class="status"><span class="status-dot"></span>synced</span>`;
+  }
+  return `<span class="status"><span class="status-dot"></span>synced</span>`;
+}
+
+function renderStatusOnly() {
+  const el = document.getElementById('status');
+  if (el) el.innerHTML = renderStatus();
+}
+
+function renderHero(total) {
+  return `
+    <section class="hero">
+      <div id="status">${renderStatus()}</div>
+      <p class="hero-label">Total Recitations</p>
+      <div class="hero-number number ${loading ? 'loading' : ''}">${loading ? '···' : total.toLocaleString('en-IN')}</div>
+      ${loading ? '' : `
+        <div class="hero-stats">
+          <span class="hero-stat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            ${state.names.length} ${state.names.length === 1 ? 'chanter' : 'chanters'}
+          </span>
+          <span class="hero-stat-sep">|</span>
+          <span class="hero-stat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${elapsedStr}
+          </span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function renderEmpty() {
+  return `
+    <section class="empty">
+      <p class="italic">No one has joined yet.</p>
+      <p class="muted">Add the first chanter to begin the session.</p>
+      <button class="btn-primary" data-action="showAdd">+ ADD CHANTER</button>
+    </section>
+  `;
+}
+
+function renderLeaderboard() {
+  const sorted = [...state.names].sort((a, b) => {
+    const d = (state.counts[b] || 0) - (state.counts[a] || 0);
+    if (d !== 0) return d;
+    return (state.joinedOrder[a] || 0) - (state.joinedOrder[b] || 0);
+  });
+  const topCount = sorted.length ? state.counts[sorted[0]] || 0 : 0;
+  return `
+    <section class="leaderboard">
+      ${sorted.map((name, idx) => {
+        const count = state.counts[name] || 0;
+        const isLeader = idx === 0 && count > 0 && count === topCount;
+        const pulse = pulseTarget === name ? 'pulse' : '';
+        return `
+          <article class="card ${isLeader ? 'leader' : ''}">
+            <div class="card-body">
+              <div class="card-name">
+                ${isLeader ? `<svg class="flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>` : ''}
+                <span>${esc(name)}</span>
+              </div>
+              <div class="card-count-row">
+                <span class="card-count number ${pulse}">${count}</span>
+                <span class="card-unit">${count === 1 ? 'recitation' : 'recitations'}</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn-plus" data-action="inc" data-name="${esc(name)}">
+                <span class="plus-sym">+</span>
+                <span>ONE</span>
+              </button>
+              <button class="btn-minus" data-action="dec" data-name="${esc(name)}" ${count <= 0 ? 'disabled' : ''}>−</button>
+            </div>
+          </article>
+        `;
+      }).join('')}
+    </section>
+  `;
+}
+
+function renderFooter() {
+  return `
+    <div class="footer">
+      <div class="ornament"></div>
+      ${confirmReset
+        ? `<div class="reset-confirm">
+            <span>Clear all counts?</span>
+            <button class="reset-yes" data-action="confirmReset">YES</button>
+            <button class="reset-no" data-action="cancelReset">NO</button>
+           </div>`
+        : `<button class="reset-link" data-action="askReset">Reset session</button>`
+      }
+    </div>
+  `;
+}
+
+function renderFab() {
+  return `
+    <button class="fab" data-action="showAdd">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      ADD
+    </button>
+  `;
+}
+
+function renderModal() {
+  return `
+    <div class="modal-overlay" data-action="closeModal">
+      <div class="modal" data-stop>
+        <div class="modal-header">
+          <h2>ADD CHANTER</h2>
+          <button class="modal-close" data-action="closeModal" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <label for="add-input">Name of the chanter</label>
+          <input id="add-input" type="text" placeholder="e.g. Padmaja Mami" autocomplete="off" />
+          <button class="btn-primary" data-action="submitAdd">ADD TO TALLY</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSetupError() {
+  return `
+    <div class="setup-error">
+      <h2>Setup needed</h2>
+      <p>This file is not yet configured. Open the HTML in a text editor and set:</p>
+      <p><code>BIN_ID</code> — your JSONBin bin ID (from the bin's URL)</p>
+      <p><code>MASTER_KEY</code> — your JSONBin master key (from JSONBin → API Keys)</p>
+      <p style="margin-top:18px; font-style:italic; color:#5C2E0A; font-size:0.9rem;">Save the file, then re-deploy or reload.</p>
+    </div>
+  `;
+}
+
+function render() {
+  const app = document.getElementById('app');
+
+  // Setup check
+  if (BIN_ID.includes('YOUR_BIN_ID') || MASTER_KEY.includes('YOUR_MASTER_KEY') || !BIN_ID || !MASTER_KEY) {
+    app.innerHTML = `<div class="container">${renderHeader()}${renderSetupError()}</div>`;
+    return;
+  }
+
+  const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
+  const hasNames = state.names.length > 0;
+
+  app.innerHTML = `
+    <div class="container">
+      ${renderHeader()}
+      ${renderHero(total)}
+      ${loading ? '' : (hasNames ? renderLeaderboard() : renderEmpty())}
+      ${hasNames && !loading ? renderFooter() : ''}
+    </div>
+    ${hasNames && !loading && !showAddForm ? renderFab() : ''}
+    ${showAddForm ? renderModal() : ''}
+  `;
+
+  if (showAddForm) {
+    const input = document.getElementById('add-input');
+    if (input) {
+      input.value = addInputValue;
+      input.focus();
+      input.addEventListener('input', (e) => { addInputValue = e.target.value; });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addName();
+        if (e.key === 'Escape') { showAddForm = false; addInputValue = ''; render(); }
+      });
+    }
+  }
+}
+
+// ============================================================================
+// EVENT DELEGATION
+// ============================================================================
+document.addEventListener('click', (e) => {
+  // Modal: click overlay to close, but not inside modal content
+  if (e.target.closest('[data-stop]')) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const name = btn.dataset.name;
+    handleAction(action, name);
+    return;
+  }
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const name = btn.dataset.name;
+  handleAction(action, name);
+});
+
+function handleAction(action, name) {
+  switch (action) {
+    case 'showAdd':
+      showAddForm = true;
+      addInputValue = '';
+      render();
+      break;
+    case 'closeModal':
+      showAddForm = false;
+      addInputValue = '';
+      render();
+      break;
+    case 'submitAdd':
+      addName();
+      break;
+    case 'inc':
+      increment(name);
+      break;
+    case 'dec':
+      decrement(name);
+      break;
+    case 'askReset':
+      confirmReset = true;
+      render();
+      break;
+    case 'cancelReset':
+      confirmReset = false;
+      render();
+      break;
+    case 'confirmReset':
+      resetSession();
+      break;
+  }
+}
+
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
+function updateElapsed() {
+  if (!state.startTime) { elapsedStr = '—'; return; }
+  const ms = Date.now() - state.startTime;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  elapsedStr = `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+// Initial render
+render();
+
+// First load (only if configured)
+if (!BIN_ID.includes('YOUR_BIN_ID') && !MASTER_KEY.includes('YOUR_MASTER_KEY')) {
+  loadFromBin();
+
+  // Polling
+  setInterval(() => {
+    loadFromBin();
+  }, POLL_MS);
+
+  // Elapsed time update
+  setInterval(() => {
+    updateElapsed();
+    // Only re-render the hero stats — cheap full re-render is fine here
+    if (!loading && state.names.length > 0) render();
+  }, 30000);
+  updateElapsed();
+
+  // Reload state when user returns to the tab
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadFromBin();
+  });
+  window.addEventListener('focus', () => loadFromBin());
+}
+</script>
+</body>
+</html>
