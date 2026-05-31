@@ -1,0 +1,19 @@
+{
+  "name": "Vishnu Sahasranama Parayana",
+  "short_name": "Parayana",
+  "description": "Live chant tally for Vishnu Sahasranama Parayana events",
+  "start_url": "/parayana-counter/parayana-counter.html",
+  "scope": "/parayana-counter/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#EDD9A8",
+  "background_color": "#EDD9A8",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#EDD9A8" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Parayana" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.svg" />
 <title>Vishnu Sahasranama Parayana</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -378,6 +384,50 @@
     border-radius: 2px;
   }
 
+  /* PIN modal */
+  .pin-screen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 70vh; text-align: center; padding: 32px 20px;
+  }
+  .pin-lock { font-size: 2.5rem; margin-bottom: 16px; }
+  .pin-title { font-family: 'Cormorant SC', serif; font-size: 1rem; letter-spacing: 0.2em; color: #3A1F0F; margin-bottom: 8px; }
+  .pin-sub { font-size: 0.85rem; color: #8B4513; font-style: italic; margin-bottom: 24px; }
+  .pin-input {
+    width: 160px; text-align: center; letter-spacing: 0.4em;
+    padding: 14px 16px; font-family: 'Cormorant Garamond', serif; font-size: 1.4rem;
+    background: rgba(255,250,240,0.9); border: 1px solid rgba(139,69,19,0.3);
+    border-radius: 2px; color: #2B1810; outline: none; margin-bottom: 16px;
+  }
+  .pin-input:focus { border-color: #9C2A12; }
+  .pin-error { color: #9C2A12; font-size: 0.82rem; font-style: italic; margin-bottom: 12px; min-height: 18px; }
+
+  /* Export buttons */
+  .export-row {
+    display: flex; gap: 10px; justify-content: center;
+    margin-top: 16px; flex-wrap: wrap;
+  }
+  .btn-export {
+    background: transparent; border: 1px solid rgba(139,69,19,0.3);
+    color: #5C2E0A; padding: 8px 18px;
+    font-family: 'Cormorant SC', serif; font-size: 0.75rem;
+    letter-spacing: 0.15em; border-radius: 2px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background 0.15s;
+  }
+  .btn-export:hover { background: rgba(139,69,19,0.06); }
+  .btn-export svg { width: 13px; height: 13px; }
+
+  /* Print styles */
+  @media print {
+    .fab-group, .fab, .fab-import, .btn-plus, .btn-minus,
+    .card-actions, .search-wrap, .search-count, .footer,
+    .export-row, .status, .bg-om, .grain { display: none !important; }
+    body { background: white !important; }
+    .card { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
+    .hero { box-shadow: none !important; }
+    .container { padding-bottom: 20px !important; }
+  }
+
   /* Animations */
   @keyframes pulseUp {
     0% { transform: scale(1); }
@@ -574,6 +624,9 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ============================================================================
 let activeEvent  = null;  // row from event_summary view
 let readOnly     = false; // true when event is locked (>7 days old or not active)
+let pinUnlocked  = false;
+let pinInput     = '';
+let pinError     = '';
 let entries      = [];    // [{ participant_id, name, count, joined_at }]
 let loading      = true;
 let pulseTarget  = null;
@@ -620,6 +673,12 @@ async function loadActiveEvent() {
     if (activeEvent) {
       const daysSince = (Date.now() - new Date(activeEvent.event_date).getTime()) / 86400000;
       readOnly = !activeEvent.is_active || daysSince > 7;
+      // Check PIN: restore from sessionStorage if previously unlocked
+      if (activeEvent.has_pin) {
+        pinUnlocked = sessionStorage.getItem(`pin_ok_${activeEvent.id}`) === '1';
+      } else {
+        pinUnlocked = true;
+      }
     }
 
     await loadEntries();
@@ -747,6 +806,69 @@ async function resetSession() {
 }
 
 // ============================================================================
+// PIN
+// ============================================================================
+async function submitPin() {
+  const p = pinInput.trim();
+  if (!p) return;
+  pinError = '';
+  try {
+    const { data, error } = await sb.rpc('verify_event_pin', {
+      p_event_id: activeEvent.id, p_pin: p
+    });
+    if (error) throw error;
+    if (data) {
+      pinUnlocked = true;
+      sessionStorage.setItem(`pin_ok_${activeEvent.id}`, '1');
+      render();
+    } else {
+      pinError = 'Incorrect PIN. Please try again.';
+      pinInput = '';
+      render();
+    }
+  } catch (e) {
+    pinError = 'Could not verify PIN. Check connection.';
+    render();
+  }
+}
+
+// ============================================================================
+// EXPORT
+// ============================================================================
+function exportCSV() {
+  const sorted = [...entries].sort((a, b) => b.count - a.count);
+  const header = ['Name', 'Recitations'];
+  const rows   = sorted.map(e => [`"${e.name.replace(/"/g,'""')}"`, e.count]);
+  const csv    = [header, ...rows].map(r => r.join(',')).join('\n');
+  const blob   = new Blob([csv], { type: 'text/csv' });
+  const a      = document.createElement('a');
+  a.href       = URL.createObjectURL(blob);
+  a.download   = `parayana-${activeEvent?.event_date || 'export'}.csv`;
+  a.click();
+}
+
+function printPDF() { window.print(); }
+
+// ============================================================================
+// CSV PARSING
+// ============================================================================
+function parseCSVText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const results = [];
+  for (const line of lines) {
+    // Split on comma, tab, or pipe
+    const parts = line.split(/[,\t|]/).map(p => p.trim().replace(/^"|"$/g, ''));
+    if (parts.length < 2) continue;
+    const name  = parts[0];
+    const count = parseInt(parts[1]);
+    if (!name || name.toLowerCase() === 'name') continue; // skip header row
+    if (!isNaN(count) && count >= 0 && name.length > 1)
+      results.push({ name, count, include: true });
+  }
+  return results;
+}
+
+// ============================================================================
 // RENDER
 // ============================================================================
 function esc(s) {
@@ -780,6 +902,20 @@ function renderStatus() {
 function renderStatusOnly() {
   const el = document.getElementById('status');
   if (el) el.innerHTML = renderStatus();
+}
+
+function renderPinScreen() {
+  return `
+    <div class="pin-screen">
+      <div class="pin-lock">🔒</div>
+      <p class="pin-title">Event Protected</p>
+      <p class="pin-sub">${esc(activeEvent?.title || '')}</p>
+      <input class="pin-input" id="pin-input" type="number" placeholder="····"
+        inputmode="numeric" maxlength="8" value="${esc(pinInput)}" autocomplete="off" />
+      <p class="pin-error">${esc(pinError)}</p>
+      <button class="btn-primary" data-action="submitPin">ENTER</button>
+    </div>
+  `;
 }
 
 function renderReadOnlyBanner() {
@@ -901,13 +1037,24 @@ function renderFooter() {
   return `
     <div class="footer">
       <div class="ornament"></div>
-      ${confirmReset
+      ${!readOnly ? (confirmReset
         ? `<div class="reset-confirm">
             <span>Clear all counts?</span>
             <button class="reset-yes" data-action="confirmReset">YES</button>
             <button class="reset-no" data-action="cancelReset">NO</button>
            </div>`
-        : `<button class="reset-link" data-action="askReset">Reset session</button>`}
+        : `<button class="reset-link" data-action="askReset">Reset session</button>`)
+      : ''}
+      <div class="export-row">
+        <button class="btn-export" data-action="exportCSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          EXPORT CSV
+        </button>
+        <button class="btn-export" data-action="printPDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          PRINT / PDF
+        </button>
+      </div>
     </div>
   `;
 }
@@ -949,9 +1096,10 @@ function renderImportModal() {
   let body = '';
   if (importStage === 'upload') {
     body = `
-      <div style="margin-bottom:14px;display:flex;gap:8px;">
+      <div style="margin-bottom:14px;display:flex;gap:6px;">
         <button class="btn-secondary" style="flex:1" data-action="showImportPhoto">📷 PHOTO</button>
-        <button class="btn-secondary" style="flex:1" data-action="showImportManual">✏️ TYPE IT IN</button>
+        <button class="btn-secondary" style="flex:1" data-action="showImportCSV">📊 CSV</button>
+        <button class="btn-secondary" style="flex:1" data-action="showImportManual">✏️ TYPE</button>
       </div>
       <div class="import-drop" id="import-drop">
         <input type="file" accept="image/*" id="import-file-input" />
@@ -965,6 +1113,19 @@ function renderImportModal() {
       <div class="import-processing">
         <div class="import-spinner"></div>
         <p>Reading your list…</p>
+      </div>
+    `;
+  } else if (importStage === 'csv') {
+    body = `
+      <p style="font-style:italic;color:#5C2E0A;font-size:0.9rem;margin-bottom:10px;">Upload a CSV file with columns: <strong>Name, Count</strong></p>
+      <div class="import-drop" id="import-drop">
+        <input type="file" accept=".csv,.tsv,.txt" id="import-csv-input" />
+        <div class="import-drop-icon">📊</div>
+        <p>Tap to choose a CSV file</p>
+        <p class="muted">Columns: Name, Recitations (header row optional)</p>
+      </div>
+      <div class="import-actions" style="margin-top:12px;">
+        <button class="btn-secondary" data-action="retakePhoto">BACK</button>
       </div>
     `;
   } else if (importStage === 'manual') {
@@ -1020,6 +1181,18 @@ function render() {
   const app = document.getElementById('app');
   const hasEntries = entries.length > 0;
 
+  // Show PIN screen if event has a PIN and not yet unlocked
+  if (activeEvent && activeEvent.has_pin && !pinUnlocked) {
+    app.innerHTML = `<div class="container">${renderHeader()}${renderPinScreen()}</div>`;
+    const pi = document.getElementById('pin-input');
+    if (pi) {
+      pi.focus();
+      pi.addEventListener('input', e => { pinInput = e.target.value; });
+      pi.addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+    }
+    return;
+  }
+
   app.innerHTML = `
     <div class="container">
       ${renderHeader()}
@@ -1065,7 +1238,18 @@ function render() {
       attachImportReviewListeners();
     } else if (importStage === 'upload') {
       const fi = document.getElementById('import-file-input');
-      if (fi) fi.addEventListener('change', (e) => { if (e.target.files[0]) processImage(e.target.files[0]); });
+      if (fi) fi.addEventListener('change', e => { if (e.target.files[0]) processImage(e.target.files[0]); });
+      const ci = document.getElementById('import-csv-input');
+      if (ci) ci.addEventListener('change', e => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          importPreview = parseCSVText(ev.target.result);
+          importRawText = ev.target.result;
+          importStage = 'review'; render(); attachImportReviewListeners();
+        };
+        reader.readAsText(f);
+      });
       const drop = document.getElementById('import-drop');
       if (drop) {
         drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
@@ -1105,6 +1289,11 @@ function handleAction(action, id) {
     case 'cancelReset':  confirmReset = false; render(); break;
     case 'confirmReset': resetSession(); break;
     case 'clearSearch':  searchQuery = ''; render(); break;
+    case 'submitPin':    submitPin(); break;
+    case 'exportCSV':    exportCSV(); break;
+    case 'printPDF':     printPDF(); break;
+    case 'showImportCSV':
+      importStage = 'csv'; importPreview = []; render(); break;
     case 'showImport':
       showImportModal = true; importStage = 'upload'; importPreview = []; importRawText = ''; render(); break;
     case 'closeImport':
@@ -1209,6 +1398,11 @@ function updateElapsed() {
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   elapsedStr = `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+// Register service worker (PWA)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/parayana-counter/sw.js').catch(() => {});
 }
 
 // Initial render + load
