@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Parayana Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Cormorant+SC:wght@500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Cormorant Garamond', serif;
+  background: #f5f0e8;
+  color: #2B1810;
+  min-height: 100vh;
+}
+
+/* ── Top bar ── */
+.topbar {
+  background: #3A1F0F;
+  color: #F8E9C8;
+  padding: 0 24px;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-family: 'Cormorant SC', serif; font-size: 0.9rem; letter-spacing: 0.2em; }
+.topbar-user  { font-size: 0.8rem; opacity: 0.7; display: flex; align-items: center; gap: 12px; }
+.btn-logout {
+  background: rgba(248,233,200,0.12); border: 1px solid rgba(248,233,200,0.25);
+  color: #F8E9C8; padding: 5px 14px; font-family: 'Cormorant SC', serif;
+  font-size: 0.72rem; letter-spacing: 0.15em; border-radius: 2px; cursor: pointer;
+}
+.btn-logout:hover { background: rgba(248,233,200,0.2); }
+
+/* ── Login ── */
+.login-wrap {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+}
+.login-card {
+  background: #fff; border: 1px solid rgba(139,69,19,0.2);
+  border-radius: 4px; padding: 40px 36px; width: 360px;
+  box-shadow: 0 8px 32px -8px rgba(58,31,15,0.18);
+  text-align: center;
+}
+.login-om   { font-size: 2.5rem; color: #9C2A12; margin-bottom: 10px; }
+.login-title { font-family: 'Cormorant SC', serif; font-size: 1rem; letter-spacing: 0.2em; color: #3A1F0F; margin-bottom: 4px; }
+.login-sub  { font-size: 0.82rem; color: #8B4513; margin-bottom: 28px; }
+
+/* ── Shared form elements ── */
+label { display: block; font-size: 0.8rem; color: #5C2E0A; margin-bottom: 6px; font-style: italic; }
+input[type=text], input[type=email], input[type=password],
+input[type=date], input[type=time], input[type=number],
+select, textarea {
+  width: 100%; padding: 10px 12px;
+  font-family: 'Cormorant Garamond', serif; font-size: 1rem;
+  background: #faf8f4; border: 1px solid rgba(139,69,19,0.25);
+  border-radius: 2px; color: #2B1810; outline: none;
+  margin-bottom: 14px;
+}
+input:focus, select:focus, textarea:focus { border-color: #9C2A12; }
+.btn-primary {
+  background: linear-gradient(135deg, #9C2A12 0%, #B8391C 100%);
+  color: #F8E9C8; border: none; padding: 12px 24px;
+  font-family: 'Cormorant SC', serif; font-size: 0.82rem;
+  letter-spacing: 0.18em; border-radius: 2px; cursor: pointer; width: 100%;
+  box-shadow: 0 4px 12px -4px rgba(156,42,18,0.5);
+}
+.btn-primary:hover { opacity: 0.92; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-sm {
+  padding: 6px 14px; font-size: 0.72rem; letter-spacing: 0.12em;
+  width: auto; border-radius: 2px;
+}
+.btn-secondary {
+  background: transparent; border: 1px solid rgba(139,69,19,0.3);
+  color: #5C2E0A; padding: 6px 14px;
+  font-family: 'Cormorant SC', serif; font-size: 0.72rem;
+  letter-spacing: 0.12em; border-radius: 2px; cursor: pointer;
+}
+.btn-secondary:hover { background: rgba(139,69,19,0.06); }
+.btn-danger {
+  background: transparent; border: 1px solid rgba(156,42,18,0.3);
+  color: #9C2A12; padding: 6px 14px;
+  font-family: 'Cormorant SC', serif; font-size: 0.72rem;
+  letter-spacing: 0.12em; border-radius: 2px; cursor: pointer;
+}
+.btn-danger:hover { background: rgba(156,42,18,0.06); }
+.error-msg { color: #9C2A12; font-size: 0.82rem; font-style: italic; margin-bottom: 12px; min-height: 18px; }
+.success-msg { color: #2A6B2A; font-size: 0.82rem; font-style: italic; margin-bottom: 12px; min-height: 18px; }
+
+/* ── Layout ── */
+.main { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid rgba(139,69,19,0.15); }
+.tab {
+  padding: 10px 20px; font-family: 'Cormorant SC', serif; font-size: 0.78rem;
+  letter-spacing: 0.15em; cursor: pointer; border: none; background: transparent;
+  color: #8B4513; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab.active { color: #9C2A12; border-bottom-color: #9C2A12; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Section card ── */
+.card {
+  background: #fff; border: 1px solid rgba(139,69,19,0.15);
+  border-radius: 4px; padding: 24px; margin-bottom: 20px;
+  box-shadow: 0 2px 8px -4px rgba(58,31,15,0.1);
+}
+.card-title {
+  font-family: 'Cormorant SC', serif; font-size: 0.82rem;
+  letter-spacing: 0.18em; color: #3A1F0F; margin-bottom: 18px;
+  padding-bottom: 10px; border-bottom: 1px solid rgba(139,69,19,0.12);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.form-group { margin-bottom: 0; }
+
+/* ── Events table ── */
+.events-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.events-table th {
+  text-align: left; font-family: 'Cormorant SC', serif; font-size: 0.7rem;
+  letter-spacing: 0.18em; color: #8B4513; padding: 8px 10px;
+  border-bottom: 1px solid rgba(139,69,19,0.15); white-space: nowrap;
+}
+.events-table td {
+  padding: 12px 10px; border-bottom: 1px solid rgba(139,69,19,0.08);
+  vertical-align: middle;
+}
+.events-table tr:last-child td { border-bottom: none; }
+.events-table tr:hover td { background: rgba(139,69,19,0.03); }
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 0.72rem; font-family: 'Cormorant SC', serif; letter-spacing: 0.1em;
+}
+.badge-active  { background: rgba(42,107,42,0.12); color: #2A6B2A; }
+.badge-inactive { background: rgba(139,69,19,0.1); color: #8B4513; }
+.badge-pin     { background: rgba(156,42,18,0.1); color: #9C2A12; }
+.actions-cell  { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* ── Spinner ── */
+.spinner {
+  width: 20px; height: 20px; border: 2px solid rgba(139,69,19,0.2);
+  border-top-color: #9C2A12; border-radius: 50%;
+  animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row td { text-align: center; padding: 32px; color: #8B4513; font-style: italic; }
+
+/* ── PIN modal ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(58,31,15,0.4);
+  backdrop-filter: blur(2px); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: #faf8f4; border: 1px solid rgba(139,69,19,0.3);
+  border-radius: 4px; padding: 28px; width: 100%; max-width: 380px;
+  box-shadow: 0 16px 48px -8px rgba(58,31,15,0.35);
+}
+.modal h3 {
+  font-family: 'Cormorant SC', serif; font-size: 0.85rem;
+  letter-spacing: 0.18em; color: #3A1F0F; margin-bottom: 18px;
+}
+.modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+.modal-actions button { flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const SUPABASE_URL     = "https://lxwujdsbcnhschxekntd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4d3VqZHNiY25oc2NoeGVrbnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDUwMTcsImV4cCI6MjA5NTc4MTAxN30.MDAtdMCdZL1jDd880XU_0mPPmSTWT1udoPzBs9dE5uM";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let user      = null;
+let events    = [];
+let locations = [];
+let ptypes    = [];
+let activeTab = 'events';
+let loginEmail = '', loginPassword = '', loginError = '';
+let formMsg   = '';
+let pinModal  = null;  // { eventId, eventTitle, currentPin }
+let newPinVal = '';
+let loading   = false;
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function login() {
+  loginError = '';
+  render();
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: loginEmail, password: loginPassword
+  });
+  if (error) { loginError = error.message; render(); return; }
+  user = data.user;
+  await loadAll();
+  render();
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  user = null; events = []; locations = []; ptypes = [];
+  render();
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  loading = true; render();
+  await Promise.all([loadEvents(), loadLocations(), loadPtypes()]);
+  loading = false; render();
+}
+
+async function loadEvents() {
+  const { data } = await sb.from('event_summary').select('*').order('event_date', { ascending: false });
+  events = data || [];
+}
+
+async function loadLocations() {
+  const { data } = await sb.from('locations').select('*').order('city');
+  locations = data || [];
+}
+
+async function loadPtypes() {
+  const { data } = await sb.from('parayana_types').select('*').order('name');
+  ptypes = data || [];
+}
+
+// ── Event actions ─────────────────────────────────────────────────────────────
+async function createEvent(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    title:            fd.get('title'),
+    location_id:      fd.get('location_id') || null,
+    parayana_type_id: fd.get('parayana_type_id') || null,
+    event_date:       fd.get('event_date'),
+    started_at:       fd.get('started_at') ? `${fd.get('event_date')}T${fd.get('started_at')}:00` : null,
+    pin:              fd.get('pin') || null,
+    is_active:        fd.get('is_active') === 'true',
+  };
+
+  // If setting active, deactivate others first
+  if (payload.is_active) {
+    await sb.from('events').update({ is_active: false }).eq('is_active', true);
+  }
+
+  const { error } = await sb.from('events').insert(payload);
+  if (error) { formMsg = '✗ ' + error.message; }
+  else { formMsg = '✓ Event created successfully.'; e.target.reset(); }
+  await loadEvents(); render();
+}
+
+async function setActive(eventId) {
+  await sb.from('events').update({ is_active: false }).eq('is_active', true);
+  await sb.from('events').update({ is_active: true }).eq('id', eventId);
+  await loadEvents(); render();
+}
+
+async function deactivate(eventId) {
+  await sb.from('events').update({ is_active: false }).eq('id', eventId);
+  await loadEvents(); render();
+}
+
+async function deleteEvent(eventId, title) {
+  if (!confirm(`Delete "${title}"? This will remove all participant entries for this event.`)) return;
+  await sb.from('events').delete().eq('id', eventId);
+  await loadEvents(); render();
+}
+
+function openPinModal(eventId, eventTitle, currentPin) {
+  pinModal = { eventId, eventTitle, currentPin };
+  newPinVal = '';
+  render();
+  setTimeout(() => document.getElementById('pin-modal-input')?.focus(), 50);
+}
+
+async function savePin() {
+  if (!pinModal) return;
+  const val = newPinVal.trim() || null;
+  const { error } = await sb.from('events').update({ pin: val }).eq('id', pinModal.eventId);
+  if (!error) { pinModal = null; await loadEvents(); render(); }
+}
+
+async function clearPin() {
+  if (!pinModal) return;
+  await sb.from('events').update({ pin: null }).eq('id', pinModal.eventId);
+  pinModal = null; await loadEvents(); render();
+}
+
+// ── Location actions ──────────────────────────────────────────────────────────
+async function createLocation(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const { error } = await sb.from('locations').insert({
+    name: fd.get('name'), city: fd.get('city'),
+    state: fd.get('state') || null, country: fd.get('country') || 'India'
+  });
+  if (error) { formMsg = '✗ ' + error.message; }
+  else { formMsg = '✓ Location added.'; e.target.reset(); }
+  await loadLocations(); render();
+}
+
+async function deleteLocation(id, name) {
+  if (!confirm(`Delete location "${name}"?`)) return;
+  await sb.from('locations').delete().eq('id', id);
+  await loadLocations(); render();
+}
+
+// ── Parayana type actions ─────────────────────────────────────────────────────
+async function createPtype(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const { error } = await sb.from('parayana_types').insert({
+    name: fd.get('name'), deity: fd.get('deity') || null,
+    description: fd.get('description') || null
+  });
+  if (error) { formMsg = '✗ ' + error.message; }
+  else { formMsg = '✓ Type added.'; e.target.reset(); }
+  await loadPtypes(); render();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function fmt(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function renderLogin() {
+  return `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-om">ॐ</div>
+        <p class="login-title">Parayana Admin</p>
+        <p class="login-sub">Sign in to manage events</p>
+        <label>Email</label>
+        <input type="email" id="l-email" value="${loginEmail}" placeholder="admin@example.com" autocomplete="email" />
+        <label>Password</label>
+        <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password" />
+        <p class="error-msg">${loginError}</p>
+        <button class="btn-primary" onclick="login()">SIGN IN</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTopbar() {
+  return `
+    <div class="topbar">
+      <span class="topbar-title">Parayana Admin</span>
+      <span class="topbar-user">
+        ${user?.email}
+        <button class="btn-logout" onclick="logout()">Sign out</button>
+      </span>
+    </div>
+  `;
+}
+
+function renderEventsTab() {
+  const locMap  = Object.fromEntries(locations.map(l => [l.id, `${l.name}, ${l.city}`]));
+  const ptMap   = Object.fromEntries(ptypes.map(p => [p.id, p.name]));
+  const rows = events.length === 0
+    ? `<tr class="loading-row"><td colspan="7">No events yet.</td></tr>`
+    : events.map(ev => `
+      <tr>
+        <td>${fmt(ev.event_date)}</td>
+        <td>${ev.title}</td>
+        <td style="font-size:0.85rem;color:#5C2E0A;">${ev.location_name ? `${ev.location_name}, ${ev.location_city}` : '—'}</td>
+        <td style="font-size:0.85rem;">${ev.parayana_type || '—'}</td>
+        <td>
+          ${ev.is_active
+            ? `<span class="badge badge-active">Active</span>`
+            : `<span class="badge badge-inactive">Inactive</span>`}
+          ${ev.has_pin ? `<span class="badge badge-pin" style="margin-left:4px;">PIN</span>` : ''}
+        </td>
+        <td style="font-size:0.85rem;color:#5C2E0A;">${ev.participant_count} / ${ev.total_recitations}</td>
+        <td>
+          <div class="actions-cell">
+            ${!ev.is_active
+              ? `<button class="btn-secondary btn-sm" onclick="setActive('${ev.id}')">Set Active</button>`
+              : `<button class="btn-secondary btn-sm" onclick="deactivate('${ev.id}')">Deactivate</button>`}
+            <button class="btn-secondary btn-sm" onclick="openPinModal('${ev.id}','${ev.title.replace(/'/g,"\\'")}','${ev.has_pin ? '••••' : ''}')">PIN</button>
+            <button class="btn-danger btn-sm" onclick="deleteEvent('${ev.id}','${ev.title.replace(/'/g,"\\'")}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+  const locOptions = locations.map(l => `<option value="${l.id}">${l.name}, ${l.city}</option>`).join('');
+  const ptOptions  = ptypes.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  const today = new Date().toISOString().slice(0,10);
+
+  return `
+    <div class="card">
+      <p class="card-title">All Events</p>
+      <div style="overflow-x:auto;">
+        <table class="events-table">
+          <thead><tr>
+            <th>Date</th><th>Title</th><th>Location</th><th>Type</th><th>Status</th><th>Chanters / Recs</th><th>Actions</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Create New Event</p>
+      ${formMsg ? `<p class="${formMsg.startsWith('✓') ? 'success-msg' : 'error-msg'}">${formMsg}</p>` : ''}
+      <form onsubmit="createEvent(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Event Title *</label>
+            <input type="text" name="title" required placeholder="e.g. Gayatri Bhavan Parayana - Aug 2026" />
+          </div>
+          <div class="form-group">
+            <label>Event Date *</label>
+            <input type="date" name="event_date" required value="${today}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Location</label>
+            <select name="location_id">
+              <option value="">— Select location —</option>
+              ${locOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Parayana Type</label>
+            <select name="parayana_type_id">
+              <option value="">— Select type —</option>
+              ${ptOptions}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Time (optional)</label>
+            <input type="time" name="started_at" />
+          </div>
+          <div class="form-group">
+            <label>PIN (optional — leave blank for open access)</label>
+            <input type="text" name="pin" placeholder="e.g. 1008" maxlength="8" />
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label>Set as active event?</label>
+          <select name="is_active">
+            <option value="false">No — create as inactive</option>
+            <option value="true">Yes — make this the live event</option>
+          </select>
+        </div>
+        <button class="btn-primary" type="submit">CREATE EVENT</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderLocationsTab() {
+  const rows = locations.length === 0
+    ? `<tr class="loading-row"><td colspan="4">No locations yet.</td></tr>`
+    : locations.map(l => `
+      <tr>
+        <td>${l.name}</td>
+        <td>${l.city}</td>
+        <td>${l.state || '—'}</td>
+        <td>${l.country || 'India'}</td>
+        <td><button class="btn-danger btn-sm" onclick="deleteLocation('${l.id}','${l.name.replace(/'/g,"\\'")}')">Delete</button></td>
+      </tr>
+    `).join('');
+
+  return `
+    <div class="card">
+      <p class="card-title">Locations</p>
+      <table class="events-table">
+        <thead><tr><th>Venue</th><th>City</th><th>State</th><th>Country</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <p class="card-title">Add Location</p>
+      ${formMsg ? `<p class="${formMsg.startsWith('✓') ? 'success-msg' : 'error-msg'}">${formMsg}</p>` : ''}
+      <form onsubmit="createLocation(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Venue Name *</label>
+            <input type="text" name="name" required placeholder="e.g. Gayatri Bhavan" />
+          </div>
+          <div class="form-group">
+            <label>City *</label>
+            <input type="text" name="city" required placeholder="e.g. Bangalore" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" name="state" placeholder="e.g. Karnataka" />
+          </div>
+          <div class="form-group">
+            <label>Country</label>
+            <input type="text" name="country" value="India" />
+          </div>
+        </div>
+        <button class="btn-primary" type="submit">ADD LOCATION</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderPtypesTab() {
+  const rows = ptypes.length === 0
+    ? `<tr class="loading-row"><td colspan="3">No types yet.</td></tr>`
+    : ptypes.map(p => `
+      <tr>
+        <td>${p.name}</td>
+        <td>${p.deity || '—'}</td>
+        <td>${p.description || '—'}</td>
+      </tr>
+    `).join('');
+
+  return `
+    <div class="card">
+      <p class="card-title">Parayana Types</p>
+      <table class="events-table">
+        <thead><tr><th>Name</th><th>Deity</th><th>Description</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <p class="card-title">Add Parayana Type</p>
+      ${formMsg ? `<p class="${formMsg.startsWith('✓') ? 'success-msg' : 'error-msg'}">${formMsg}</p>` : ''}
+      <form onsubmit="createPtype(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Name *</label>
+            <input type="text" name="name" required placeholder="e.g. Devi Mahatmyam" />
+          </div>
+          <div class="form-group">
+            <label>Deity</label>
+            <input type="text" name="deity" placeholder="e.g. Devi" />
+          </div>
+        </div>
+        <label>Description</label>
+        <textarea name="description" rows="2" placeholder="Optional short description"></textarea>
+        <button class="btn-primary" type="submit">ADD TYPE</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderPinModal() {
+  if (!pinModal) return '';
+  return `
+    <div class="overlay" onclick="if(event.target===this){pinModal=null;render();}">
+      <div class="modal">
+        <h3>SET PIN — ${pinModal.eventTitle}</h3>
+        <label>${pinModal.currentPin ? 'Current PIN is set. Enter new PIN to replace, or clear it.' : 'No PIN set. Enter a PIN to protect this event.'}</label>
+        <input type="text" id="pin-modal-input" placeholder="e.g. 1008" maxlength="8"
+          value="${newPinVal}" oninput="newPinVal=this.value" onkeydown="if(event.key==='Enter')savePin()" />
+        <div class="modal-actions">
+          ${pinModal.currentPin ? `<button class="btn-danger" onclick="clearPin()">CLEAR PIN</button>` : ''}
+          <button class="btn-secondary" onclick="pinModal=null;render()">CANCEL</button>
+          <button class="btn-primary btn-sm" onclick="savePin()">SAVE</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const root = document.getElementById('root');
+  if (!user) {
+    root.innerHTML = renderLogin();
+    // Attach login input listeners
+    setTimeout(() => {
+      const em = document.getElementById('l-email');
+      const pw = document.getElementById('l-pass');
+      if (em) { em.value = loginEmail; em.oninput = e => loginEmail = e.target.value; }
+      if (pw) { pw.oninput = e => loginPassword = e.target.value;
+                pw.onkeydown = e => { if (e.key === 'Enter') login(); }; }
+    }, 0);
+    return;
+  }
+
+  let tabContent = '';
+  if (loading) {
+    tabContent = `<div style="text-align:center;padding:48px;color:#8B4513;font-style:italic;"><div class="spinner"></div><br><br>Loading…</div>`;
+  } else if (activeTab === 'events')    tabContent = renderEventsTab();
+  else if (activeTab === 'locations')  tabContent = renderLocationsTab();
+  else if (activeTab === 'types')      tabContent = renderPtypesTab();
+
+  root.innerHTML = `
+    ${renderTopbar()}
+    <div class="main">
+      <div class="tabs">
+        <button class="tab ${activeTab==='events'?'active':''}"    onclick="activeTab='events';formMsg='';render()">Events</button>
+        <button class="tab ${activeTab==='locations'?'active':''}" onclick="activeTab='locations';formMsg='';render()">Locations</button>
+        <button class="tab ${activeTab==='types'?'active':''}"     onclick="activeTab='types';formMsg='';render()">Parayana Types</button>
+      </div>
+      ${tabContent}
+    </div>
+    ${renderPinModal()}
+  `;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { user = session.user; await loadAll(); }
+  render();
+
+  sb.auth.onAuthStateChange((event, session) => {
+    user = session?.user || null;
+    if (!user) render();
+  });
+})();
+</script>
+</body>
+</html>
