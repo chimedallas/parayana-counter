@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Parayana Migration Tool</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; background: #faf9f7; color: #222; }
+  h1 { font-size: 1.4rem; margin-bottom: 6px; }
+  p  { color: #555; font-size: 0.9rem; margin-bottom: 24px; }
+  button { background: #9C2A12; color: #fff; border: none; padding: 14px 28px; font-size: 1rem; border-radius: 4px; cursor: pointer; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #log { margin-top: 24px; background: #111; color: #cfc; font-family: monospace; font-size: 0.82rem; padding: 16px; border-radius: 4px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; display: none; }
+  .err { color: #f88; }
+  .ok  { color: #8f8; }
+  .info { color: #8cf; }
+</style>
+</head>
+<body>
+<h1>Parayana Migration Tool</h1>
+<p>Paste your JSONBin JSON below, then click Run.</p>
+<p style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px;color:#555;">
+  1. Go to <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> → log in → open your bin<br>
+  2. Click the bin, copy all the JSON text shown<br>
+  3. Paste it in the box below and click Run
+</p>
+<textarea id="json-input" rows="6" placeholder='Paste the JSON here — should start with {"record":... or {"names":...' style="width:100%;font-family:monospace;font-size:0.82rem;padding:10px;border:1px solid #ccc;border-radius:4px;margin-bottom:12px;box-sizing:border-box;"></textarea>
+<button id="btn" onclick="migrate()">▶ Run Migration</button>
+<div id="log"></div>
+
+<script>
+const BIN_ID          = "6a1a5cef21f9ee59d29c8ffd";
+const MASTER_KEY      = "$2a$10$8zdYxRdWcZfNWReP5skKdu4FiCtBvSfkuE461XPN0hYd48BlvvynW";
+const SUPABASE_URL    = "https://lxwujdsbcnhschxekntd.supabase.co";
+const SUPABASE_KEY    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4d3VqZHNiY25oc2NoeGVrbnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDUwMTcsImV4cCI6MjA5NTc4MTAxN30.MDAtdMCdZL1jDd880XU_0mPPmSTWT1udoPzBs9dE5uM";
+const PAST_EVENT_ID   = "9f83fa30-7916-4d73-a32c-897d4901dca6";
+
+const logEl = document.getElementById('log');
+const btn   = document.getElementById('btn');
+
+function log(msg, cls = '') {
+  logEl.style.display = 'block';
+  logEl.innerHTML += `<span class="${cls}">${msg}</span>\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function rpc(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+async function migrate() {
+  btn.disabled = true;
+  logEl.innerHTML = '';
+  log('Fetching JSONBin data…', 'info');
+
+  let record;
+  try {
+    const raw = document.getElementById('json-input').value.trim();
+    if (!raw) throw new Error('Nothing pasted — paste the JSONBin content first.');
+    const parsed = JSON.parse(raw);
+    // JSONBin wraps data in { record: {...} } but the bin content itself might be the record
+    record = parsed.record || parsed;
+    if (!record.names) throw new Error('Could not find "names" in the pasted JSON. Make sure you copied the full bin content.');
+  } catch (e) {
+    log('✗ ' + e.message, 'err');
+    btn.disabled = false;
+    return;
+  }
+
+  const names  = record.names  || [];
+  const counts = record.counts || {};
+  log(`Found ${names.length} participants in JSONBin.\n`, 'info');
+
+  let ok = 0, fail = 0;
+  for (const name of names) {
+    try {
+      const participantId = await rpc('add_chanter_to_event', {
+        p_event_id: PAST_EVENT_ID,
+        p_name: name
+      });
+      const count = counts[name] || 0;
+      if (count > 0) {
+        await rpc('update_chant_count', {
+          p_event_id: PAST_EVENT_ID,
+          p_participant_id: participantId,
+          p_delta: count
+        });
+      }
+      log(`✓ ${name} — ${count} recitation${count !== 1 ? 's' : ''}`, 'ok');
+      ok++;
+    } catch (e) {
+      log(`✗ ${name} — ${e.message}`, 'err');
+      if (fail === 1) break; // stop after first failure to show the error clearly
+      fail++;
+    }
+  }
+
+  log(`\n── Done: ${ok} imported, ${fail} failed. ──`, 'info');
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
