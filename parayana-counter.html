@@ -553,17 +553,10 @@
      CONFIGURATION — FILL IN BEFORE DEPLOYING
      ======================================================================== -->
 <script>
-  // Replace these with your JSONBin values.
-  // Bin ID: from the URL of your bin (e.g. 652abc123def456)
-  // Master Key: from JSONBin → API Keys → X-Master-Key
-  const BIN_ID = "6a1a5cef21f9ee59d29c8ffd";
-  const MASTER_KEY = "$2a$10$8zdYxRdWcZfNWReP5skKdu4FiCtBvSfkuE461XPN0hYd48BlvvynW";
-
-  // Polling interval: how often to check for updates from other devices.
-  // 8 seconds is a good balance for the JSONBin free tier (10k requests/month).
-  // Lower = fresher data but more API calls. Higher = staler but lighter.
-  const POLL_MS = 200000;
+  const SUPABASE_URL     = "https://lxwujdsbcnhschxekntd.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4d3VqZHNiY25oc2NoeGVrbnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDUwMTcsImV4cCI6MjA5NTc4MTAxN30.MDAtdMCdZL1jDd880XU_0mPPmSTWT1udoPzBs9dE5uM";
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <div class="bg-om bg-om-1">ॐ</div>
 <div class="bg-om bg-om-2">ॐ</div>
@@ -572,158 +565,179 @@
 
 <script>
 // ============================================================================
+// SUPABASE CLIENT
+// ============================================================================
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================================================
 // STATE
 // ============================================================================
-let state = {
-  names: [],
-  counts: {},
-  joinedOrder: {},
-  startTime: null,
-  lastModified: 0,
-};
-let loading = true;
-let lastSaveAt = 0;
-let pulseTarget = null;
+let activeEvent  = null;  // row from event_summary view
+let entries      = [];    // [{ participant_id, name, count, joined_at }]
+let loading      = true;
+let pulseTarget  = null;
 let pulseTimeout = null;
-let showAddForm = false;
+let showAddForm  = false;
 let confirmReset = false;
 let addInputValue = '';
-let syncStatus = 'idle'; // 'idle' | 'syncing' | 'error'
-let lastSyncAt = 0;
-let elapsedStr = '—';
-let searchQuery = '';
+let syncStatus   = 'idle'; // 'idle' | 'syncing' | 'error'
+let lastSyncAt   = 0;
+let elapsedStr   = '—';
+let searchQuery  = '';
 let showImportModal = false;
-let importStage = 'upload'; // 'upload' | 'processing' | 'review' | 'manual'
-let importPreview = []; // [{name, count, include}]
+let importStage  = 'upload'; // 'upload' | 'processing' | 'review' | 'manual'
+let importPreview = [];
 let importRawText = '';
 
-const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Master-Key': MASTER_KEY,
-};
-
 // ============================================================================
-// API
+// API — SUPABASE
 // ============================================================================
-async function loadFromBin() {
-  if (Date.now() - lastSaveAt < 3000) return;
+async function loadActiveEvent() {
   syncStatus = 'syncing';
   renderStatusOnly();
   try {
-    const res = await fetch(`${API_BASE}/latest`, { headers: HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const record = data.record || {};
-    const fresh = {
-      names: Array.isArray(record.names) ? record.names : [],
-      counts: record.counts && typeof record.counts === 'object' ? record.counts : {},
-      joinedOrder: record.joinedOrder && typeof record.joinedOrder === 'object' ? record.joinedOrder : {},
-      startTime: record.startTime || null,
-      lastModified: record.lastModified || 0,
-    };
-    if (fresh.lastModified >= (state.lastModified || 0)) {
-      state = fresh;
-    }
-    syncStatus = 'idle';
-    lastSyncAt = Date.now();
+    const { data, error } = await sb
+      .from('event_summary')
+      .select('*')
+      .eq('is_active', true)
+      .single();
+    if (error) throw error;
+    activeEvent = data;
+    await loadEntries();
   } catch (e) {
-    console.error('Load failed', e);
+    console.error('Load event failed', e);
     syncStatus = 'error';
-  } finally {
-    if (loading) {
-      loading = false;
-    }
+    loading = false;
     render();
   }
 }
 
-async function saveToBin() {
-  state.lastModified = Date.now();
-  lastSaveAt = Date.now();
-  syncStatus = 'syncing';
-  renderStatusOnly();
+async function loadEntries() {
   try {
-    const res = await fetch(API_BASE, {
-      method: 'PUT',
-      headers: HEADERS,
-      body: JSON.stringify(state),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { data, error } = await sb
+      .from('event_entries')
+      .select('participant_id, count, joined_at, participants(name)')
+      .eq('event_id', activeEvent.id);
+    if (error) throw error;
+    entries = (data || []).map(e => ({
+      participant_id: e.participant_id,
+      name: e.participants?.name || '(unknown)',
+      count: e.count,
+      joined_at: e.joined_at,
+    }));
     syncStatus = 'idle';
     lastSyncAt = Date.now();
   } catch (e) {
-    console.error('Save failed', e);
+    console.error('Load entries failed', e);
     syncStatus = 'error';
+  } finally {
+    loading = false;
+    render();
   }
-  renderStatusOnly();
+}
+
+function subscribeToEvent() {
+  sb.channel(`event:${activeEvent.id}`)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'event_entries',
+      filter: `event_id=eq.${activeEvent.id}`
+    }, (payload) => {
+      if (payload.eventType === 'UPDATE') {
+        const { participant_id, count } = payload.new;
+        entries = entries.map(e =>
+          e.participant_id === participant_id ? { ...e, count } : e
+        );
+        render();
+      } else {
+        loadEntries(); // INSERT or DELETE — reload
+      }
+    })
+    .subscribe();
 }
 
 // ============================================================================
 // ACTIONS
 // ============================================================================
-function addName() {
-  if (loading) return;
+async function addName() {
+  if (loading || !activeEvent) return;
   const name = addInputValue.trim();
   if (!name) return;
-  if (state.names.includes(name)) {
-    addInputValue = '';
-    showAddForm = false;
-    render();
-    return;
+  if (entries.find(e => e.name.toLowerCase() === name.toLowerCase())) {
+    addInputValue = ''; showAddForm = false; render(); return;
   }
-  state = {
-    ...state,
-    names: [...state.names, name],
-    counts: { ...state.counts, [name]: 0 },
-    joinedOrder: { ...state.joinedOrder, [name]: Date.now() },
-    startTime: state.startTime || Date.now(),
-  };
-  addInputValue = '';
-  showAddForm = false;
-  saveToBin();
-  render();
+  showAddForm = false; addInputValue = '';
+  syncStatus = 'syncing'; render();
+  try {
+    await sb.rpc('add_chanter_to_event', { p_event_id: activeEvent.id, p_name: name });
+    await loadEntries();
+  } catch (e) {
+    console.error('Add chanter failed', e);
+    syncStatus = 'error'; render();
+  }
 }
 
-function increment(name) {
+async function increment(participantId) {
   if (loading) return;
-  pulseTarget = name;
+  pulseTarget = participantId;
   if (pulseTimeout) clearTimeout(pulseTimeout);
   pulseTimeout = setTimeout(() => { pulseTarget = null; render(); }, 500);
-  state = {
-    ...state,
-    counts: { ...state.counts, [name]: (state.counts[name] || 0) + 1 },
-  };
-  saveToBin();
+  // Optimistic update
+  entries = entries.map(e => e.participant_id === participantId ? { ...e, count: e.count + 1 } : e);
   render();
+  try {
+    await sb.rpc('update_chant_count', {
+      p_event_id: activeEvent.id, p_participant_id: participantId, p_delta: 1
+    });
+    syncStatus = 'idle'; lastSyncAt = Date.now();
+  } catch (e) {
+    console.error('Increment failed', e);
+    entries = entries.map(e => e.participant_id === participantId ? { ...e, count: Math.max(0, e.count - 1) } : e);
+    syncStatus = 'error'; render();
+  }
 }
 
-function decrement(name) {
+async function decrement(participantId) {
   if (loading) return;
-  if ((state.counts[name] || 0) <= 0) return;
-  state = {
-    ...state,
-    counts: { ...state.counts, [name]: Math.max(0, (state.counts[name] || 0) - 1) },
-  };
-  saveToBin();
+  const entry = entries.find(e => e.participant_id === participantId);
+  if (!entry || entry.count <= 0) return;
+  entries = entries.map(e => e.participant_id === participantId ? { ...e, count: Math.max(0, e.count - 1) } : e);
   render();
+  try {
+    await sb.rpc('update_chant_count', {
+      p_event_id: activeEvent.id, p_participant_id: participantId, p_delta: -1
+    });
+  } catch (e) {
+    console.error('Decrement failed', e);
+    entries = entries.map(e => e.participant_id === participantId ? { ...e, count: e.count + 1 } : e);
+    render();
+  }
 }
 
-function resetSession() {
-  state = { names: [], counts: {}, joinedOrder: {}, startTime: Date.now(), lastModified: Date.now() };
+async function resetSession() {
   confirmReset = false;
-  saveToBin();
-  render();
+  syncStatus = 'syncing'; render();
+  try {
+    await sb.from('event_entries')
+      .update({ count: 0, last_updated: new Date().toISOString() })
+      .eq('event_id', activeEvent.id);
+    await loadEntries();
+  } catch (e) {
+    console.error('Reset failed', e);
+    syncStatus = 'error'; render();
+  }
 }
 
 // ============================================================================
 // RENDER
 // ============================================================================
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 }
 
 function renderHeader() {
+  const dateStr  = activeEvent ? new Date(activeEvent.event_date).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '30 May 2026';
+  const location = activeEvent ? `${activeEvent.location_name}, ${activeEvent.location_city}` : 'Gayatri Bhavan, Bangalore';
+  const title    = activeEvent?.parayana_type || 'Vishnu Sahasranama';
   return `
     <header>
       <div class="ornament-row">
@@ -732,19 +746,15 @@ function renderHeader() {
         <div class="ornament flip"></div>
       </div>
       <h1 class="deva title-deva">श्री विष्णु सहस्रनाम</h1>
-      <p class="subtitle sc">Parayana Tally</p>
-      <p style="margin-top:10px;font-size:0.82rem;color:#5C2E0A;letter-spacing:0.12em;font-style:italic;">30 May 2026 &nbsp;·&nbsp; Gayatri Bhavan, Bangalore</p>
+      <p class="subtitle sc">${esc(title)} · Parayana Tally</p>
+      <p style="margin-top:10px;font-size:0.82rem;color:#5C2E0A;letter-spacing:0.12em;font-style:italic;">${esc(dateStr)} &nbsp;·&nbsp; ${esc(location)}</p>
     </header>
   `;
 }
 
 function renderStatus() {
   if (syncStatus === 'syncing') return `<span class="status"><span class="status-dot syncing"></span>syncing</span>`;
-  if (syncStatus === 'error') return `<span class="status"><span class="status-dot error"></span>offline</span>`;
-  if (lastSyncAt) {
-    const ago = Math.floor((Date.now() - lastSyncAt) / 1000);
-    if (ago < 60) return `<span class="status"><span class="status-dot"></span>synced</span>`;
-  }
+  if (syncStatus === 'error')   return `<span class="status"><span class="status-dot error"></span>offline</span>`;
   return `<span class="status"><span class="status-dot"></span>synced</span>`;
 }
 
@@ -763,7 +773,7 @@ function renderHero(total) {
         <div class="hero-stats">
           <span class="hero-stat">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ${state.names.length} ${state.names.length === 1 ? 'chanter' : 'chanters'}
+            ${entries.length} ${entries.length === 1 ? 'chanter' : 'chanters'}
           </span>
           <span class="hero-stat-sep">|</span>
           <span class="hero-stat">
@@ -786,7 +796,17 @@ function renderEmpty() {
   `;
 }
 
-function renderSearch(total) {
+function renderNoEvent() {
+  return `
+    <div class="setup-error">
+      <h2>No active event</h2>
+      <p>Create an event in Supabase and set <code>is_active = true</code> to begin.</p>
+      <p style="margin-top:12px;font-size:0.85rem;color:#5C2E0A;font-style:italic;">Run the sample INSERT in schema.sql, then reload.</p>
+    </div>
+  `;
+}
+
+function renderSearch(matchCount) {
   const q = searchQuery.trim();
   return `
     <div class="search-wrap">
@@ -796,51 +816,50 @@ function renderSearch(total) {
       <input class="search-input" id="search-input" type="text" placeholder="Search chanter…" value="${esc(q)}" autocomplete="off" />
       ${q ? `<button class="search-clear" data-action="clearSearch">×</button>` : ''}
     </div>
-    ${q ? `<p class="search-count">${total} of ${state.names.length} chanters</p>` : ''}
+    ${q ? `<p class="search-count">${matchCount} of ${entries.length} chanters</p>` : ''}
   `;
 }
 
 function renderLeaderboard() {
   const q = searchQuery.trim().toLowerCase();
-  const sorted = [...state.names].sort((a, b) => {
-    const d = (state.counts[b] || 0) - (state.counts[a] || 0);
+  const sorted = [...entries].sort((a, b) => {
+    const d = b.count - a.count;
     if (d !== 0) return d;
-    return (state.joinedOrder[a] || 0) - (state.joinedOrder[b] || 0);
+    return new Date(a.joined_at) - new Date(b.joined_at);
   });
-  const filtered = q ? sorted.filter(n => n.toLowerCase().includes(q)) : sorted;
-  const topCount = sorted.length ? state.counts[sorted[0]] || 0 : 0;
+  const filtered = q ? sorted.filter(e => e.name.toLowerCase().includes(q)) : sorted;
+  const topCount = sorted.length ? sorted[0].count : 0;
   const noResults = q && filtered.length === 0;
   return `
     ${renderSearch(filtered.length)}
     <section class="leaderboard">
       ${noResults
         ? `<div class="empty"><p class="italic">No chanters matching "${esc(q)}".</p></div>`
-        : filtered.map((name, idx) => {
-        const count = state.counts[name] || 0;
-        const isLeader = idx === 0 && count > 0 && count === topCount;
-        const pulse = pulseTarget === name ? 'pulse' : '';
-        return `
-          <article class="card ${isLeader ? 'leader' : ''}">
-            <div class="card-body">
-              <div class="card-name">
-                ${isLeader ? `<svg class="flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>` : ''}
-                <span>${esc(name)}</span>
+        : filtered.map((entry, idx) => {
+          const { participant_id, name, count } = entry;
+          const isLeader = idx === 0 && count > 0 && count === topCount;
+          const pulse = pulseTarget === participant_id ? 'pulse' : '';
+          return `
+            <article class="card ${isLeader ? 'leader' : ''}">
+              <div class="card-body">
+                <div class="card-name">
+                  ${isLeader ? `<svg class="flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>` : ''}
+                  <span>${esc(name)}</span>
+                </div>
+                <div class="card-count-row">
+                  <span class="card-count number ${pulse}">${count}</span>
+                  <span class="card-unit">${count === 1 ? 'recitation' : 'recitations'}</span>
+                </div>
               </div>
-              <div class="card-count-row">
-                <span class="card-count number ${pulse}">${count}</span>
-                <span class="card-unit">${count === 1 ? 'recitation' : 'recitations'}</span>
+              <div class="card-actions">
+                <button class="btn-plus" data-action="inc" data-id="${esc(participant_id)}">
+                  <span class="plus-sym">+</span><span>ONE</span>
+                </button>
+                <button class="btn-minus" data-action="dec" data-id="${esc(participant_id)}" ${count <= 0 ? 'disabled' : ''}>−</button>
               </div>
-            </div>
-            <div class="card-actions">
-              <button class="btn-plus" data-action="inc" data-name="${esc(name)}">
-                <span class="plus-sym">+</span>
-                <span>ONE</span>
-              </button>
-              <button class="btn-minus" data-action="dec" data-name="${esc(name)}" ${count <= 0 ? 'disabled' : ''}>−</button>
-            </div>
-          </article>
-        `;
-      }).join('')}
+            </article>
+          `;
+        }).join('')}
     </section>
   `;
 }
@@ -855,8 +874,7 @@ function renderFooter() {
             <button class="reset-yes" data-action="confirmReset">YES</button>
             <button class="reset-no" data-action="cancelReset">NO</button>
            </div>`
-        : `<button class="reset-link" data-action="askReset">Reset session</button>`
-      }
+        : `<button class="reset-link" data-action="askReset">Reset session</button>`}
     </div>
   `;
 }
@@ -965,43 +983,25 @@ function renderImportModal() {
   `;
 }
 
-function renderSetupError() {
-  return `
-    <div class="setup-error">
-      <h2>Setup needed</h2>
-      <p>This file is not yet configured. Open the HTML in a text editor and set:</p>
-      <p><code>BIN_ID</code> — your JSONBin bin ID (from the bin's URL)</p>
-      <p><code>MASTER_KEY</code> — your JSONBin master key (from JSONBin → API Keys)</p>
-      <p style="margin-top:18px; font-style:italic; color:#5C2E0A; font-size:0.9rem;">Save the file, then re-deploy or reload.</p>
-    </div>
-  `;
-}
-
 function render() {
   const app = document.getElementById('app');
-
-  // Setup check
-  if (BIN_ID.includes('YOUR_BIN_ID') || MASTER_KEY.includes('YOUR_MASTER_KEY') || !BIN_ID || !MASTER_KEY) {
-    app.innerHTML = `<div class="container">${renderHeader()}${renderSetupError()}</div>`;
-    return;
-  }
-
-  const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
-  const hasNames = state.names.length > 0;
+  const hasEntries = entries.length > 0;
 
   app.innerHTML = `
     <div class="container">
       ${renderHeader()}
-      ${renderHero(total)}
-      ${loading ? '' : (hasNames ? renderLeaderboard() : renderEmpty())}
-      ${hasNames && !loading ? renderFooter() : ''}
+      ${!activeEvent && !loading
+        ? renderNoEvent()
+        : renderHero(entries.reduce((a, e) => a + e.count, 0))
+      }
+      ${loading ? '' : (!activeEvent ? '' : (hasEntries ? renderLeaderboard() : renderEmpty()))}
+      ${hasEntries && !loading ? renderFooter() : ''}
     </div>
-    ${hasNames && !loading && !showAddForm ? renderFab() : ''}
+    ${hasEntries && !loading && !showAddForm ? renderFab() : ''}
     ${showAddForm ? renderModal() : ''}
     ${showImportModal ? renderImportModal() : ''}
   `;
 
-  // Attach search listener and restore focus
   const si = document.getElementById('search-input');
   if (si) {
     si.addEventListener('input', (e) => {
@@ -1031,11 +1031,7 @@ function render() {
       attachImportReviewListeners();
     } else if (importStage === 'upload') {
       const fi = document.getElementById('import-file-input');
-      if (fi) {
-        fi.addEventListener('change', (e) => {
-          if (e.target.files[0]) processImage(e.target.files[0]);
-        });
-      }
+      if (fi) fi.addEventListener('change', (e) => { if (e.target.files[0]) processImage(e.target.files[0]); });
       const drop = document.getElementById('import-drop');
       if (drop) {
         drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
@@ -1053,102 +1049,45 @@ function render() {
 // EVENT DELEGATION
 // ============================================================================
 document.addEventListener('click', (e) => {
-  // Modal: click overlay to close, but not inside modal content
   if (e.target.closest('[data-stop]')) {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
-    const action = btn.dataset.action;
-    const name = btn.dataset.name;
-    handleAction(action, name);
+    handleAction(btn.dataset.action, btn.dataset.id);
     return;
   }
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
-  const action = btn.dataset.action;
-  const name = btn.dataset.name;
-  handleAction(action, name);
+  handleAction(btn.dataset.action, btn.dataset.id);
 });
 
-function handleAction(action, name) {
+function handleAction(action, id) {
   switch (action) {
-    case 'showAdd':
-      showAddForm = true;
-      addInputValue = '';
-      render();
-      break;
-    case 'closeModal':
-      showAddForm = false;
-      addInputValue = '';
-      render();
-      break;
-    case 'submitAdd':
-      addName();
-      break;
-    case 'inc':
-      increment(name);
-      break;
-    case 'dec':
-      decrement(name);
-      break;
-    case 'askReset':
-      confirmReset = true;
-      render();
-      break;
-    case 'cancelReset':
-      confirmReset = false;
-      render();
-      break;
-    case 'confirmReset':
-      resetSession();
-      break;
-    case 'clearSearch':
-      searchQuery = '';
-      render();
-      break;
+    case 'showAdd':      showAddForm = true; addInputValue = ''; render(); break;
+    case 'closeModal':   showAddForm = false; addInputValue = ''; render(); break;
+    case 'submitAdd':    addName(); break;
+    case 'inc':          increment(id); break;
+    case 'dec':          decrement(id); break;
+    case 'askReset':     confirmReset = true; render(); break;
+    case 'cancelReset':  confirmReset = false; render(); break;
+    case 'confirmReset': resetSession(); break;
+    case 'clearSearch':  searchQuery = ''; render(); break;
     case 'showImport':
-      showImportModal = true;
-      importStage = 'upload';
-      importPreview = [];
-      importRawText = '';
-      render();
-      break;
+      showImportModal = true; importStage = 'upload'; importPreview = []; importRawText = ''; render(); break;
     case 'closeImport':
-      showImportModal = false;
-      importStage = 'upload';
-      importPreview = [];
-      importRawText = '';
-      render();
-      break;
+      showImportModal = false; importStage = 'upload'; importPreview = []; importRawText = ''; render(); break;
     case 'showImportPhoto':
-      importStage = 'upload';
-      importPreview = [];
-      render();
-      break;
+      importStage = 'upload'; importPreview = []; render(); break;
     case 'showImportManual':
-      importStage = 'manual';
-      importPreview = [];
-      importRawText = '';
-      render();
-      break;
+      importStage = 'manual'; importPreview = []; importRawText = ''; render(); break;
     case 'retakePhoto':
-      importStage = 'upload';
-      importPreview = [];
-      importRawText = '';
-      render();
-      break;
+      importStage = 'upload'; importPreview = []; importRawText = ''; render(); break;
     case 'parseManual': {
       const ta = document.getElementById('manual-input');
-      const txt = ta ? ta.value : '';
-      importRawText = txt;
-      importPreview = parseOCRText(txt);
-      importStage = 'review';
-      render();
-      attachImportReviewListeners();
-      break;
+      importRawText = ta ? ta.value : '';
+      importPreview = parseOCRText(importRawText);
+      importStage = 'review'; render(); attachImportReviewListeners(); break;
     }
-    case 'commitImport':
-      commitImport();
-      break;
+    case 'commitImport': commitImport(); break;
   }
 }
 
@@ -1159,9 +1098,7 @@ function parseOCRText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const results = [];
   for (const line of lines) {
-    // Strip leading numbering like "1." or "1)"
     const clean = line.replace(/^\d+[\.\)]\s*/, '').trim();
-    // Match: "Name - 5", "Name: 5", "Name 5", "5 Name"
     let m = clean.match(/^(.+?)\s*[-:—]\s*(\d+)\s*$/) ||
             clean.match(/^(.+?)\s+(\d+)\s*$/) ||
             clean.match(/^(\d+)\s+(.+)$/);
@@ -1170,32 +1107,24 @@ function parseOCRText(text) {
     if (/^\d/.test(clean) && clean.match(/^(\d+)\s+(.+)$/)) {
       const mm = clean.match(/^(\d+)\s+(.+)$/);
       count = parseInt(mm[1]); name = mm[2].trim();
-    } else {
-      name = m[1].trim(); count = parseInt(m[2]);
-    }
-    if (name && !isNaN(count) && count >= 0 && name.length > 1) {
+    } else { name = m[1].trim(); count = parseInt(m[2]); }
+    if (name && !isNaN(count) && count >= 0 && name.length > 1)
       results.push({ name, count, include: true });
-    }
   }
   return results;
 }
 
 async function processImage(file) {
-  importStage = 'processing';
-  render();
+  importStage = 'processing'; render();
   try {
     const result = await Tesseract.recognize(file, 'eng');
-    const text = result.data.text || '';
-    importRawText = text;
-    importPreview = parseOCRText(text);
+    importRawText = result.data.text || '';
+    importPreview = parseOCRText(importRawText);
   } catch (e) {
     console.error('OCR failed', e);
-    importRawText = '';
-    importPreview = [];
+    importRawText = ''; importPreview = [];
   }
-  importStage = 'review';
-  render();
-  attachImportReviewListeners();
+  importStage = 'review'; render(); attachImportReviewListeners();
 }
 
 function attachImportReviewListeners() {
@@ -1216,72 +1145,49 @@ function attachImportReviewListeners() {
   });
 }
 
-function commitImport() {
+async function commitImport() {
   const toAdd = importPreview.filter(r => r.include && r.name.trim());
   if (!toAdd.length) return;
-  let newNames = [...state.names];
-  let newCounts = { ...state.counts };
-  let newJoined = { ...state.joinedOrder };
-  const now = Date.now();
+  showImportModal = false; importStage = 'upload'; importPreview = [];
+  syncStatus = 'syncing'; render();
   for (const { name, count } of toAdd) {
-    const n = name.trim();
-    if (!newNames.includes(n)) {
-      newNames.push(n);
-      newJoined[n] = now;
-    }
-    newCounts[n] = (newCounts[n] || 0) + count;
+    try {
+      const { data: participantId, error } = await sb.rpc('add_chanter_to_event', {
+        p_event_id: activeEvent.id, p_name: name.trim()
+      });
+      if (!error && count > 0) {
+        await sb.rpc('update_chant_count', {
+          p_event_id: activeEvent.id, p_participant_id: participantId, p_delta: count
+        });
+      }
+    } catch (e) { console.error('Import entry failed', name, e); }
   }
-  state = {
-    ...state,
-    names: newNames,
-    counts: newCounts,
-    joinedOrder: newJoined,
-    startTime: state.startTime || now,
-  };
-  showImportModal = false;
-  importStage = 'upload';
-  importPreview = [];
-  saveToBin();
-  render();
+  await loadEntries();
 }
 
 // ============================================================================
 // LIFECYCLE
 // ============================================================================
 function updateElapsed() {
-  if (!state.startTime) { elapsedStr = '—'; return; }
-  const ms = Date.now() - state.startTime;
+  const t = activeEvent?.started_at || activeEvent?.event_date;
+  if (!t) { elapsedStr = '—'; return; }
+  const ms = Date.now() - new Date(t).getTime();
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   elapsedStr = `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
-// Initial render
+// Initial render + load
 render();
-
-// First load (only if configured)
-if (!BIN_ID.includes('YOUR_BIN_ID') && !MASTER_KEY.includes('YOUR_MASTER_KEY')) {
-  loadFromBin();
-
-  // Polling
-  setInterval(() => {
-    loadFromBin();
-  }, POLL_MS);
-
-  // Elapsed time update
-  setInterval(() => {
+loadActiveEvent().then(() => {
+  if (activeEvent) {
+    subscribeToEvent();
+    setInterval(updateElapsed, 30000);
     updateElapsed();
-    // Only re-render the hero stats — cheap full re-render is fine here
-    if (!loading && state.names.length > 0) render();
-  }, 30000);
-  updateElapsed();
-
-  // Reload state when user returns to the tab
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) loadFromBin();
-  });
-  window.addEventListener('focus', () => loadFromBin());
-}
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadEntries(); });
+    window.addEventListener('focus', () => loadEntries());
+  }
+});
 </script>
 </body>
 </html>
