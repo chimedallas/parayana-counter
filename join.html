@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#EDD9A8" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Join Parayana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Tiro+Devanagari+Sanskrit&family=Cormorant+SC:wght@500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { min-height: 100vh; }
+body {
+  font-family: 'Cormorant Garamond', serif;
+  background: radial-gradient(ellipse at top, #F8E9C8 0%, #EDD9A8 55%, #E2C684 100%);
+  background-attachment: fixed;
+  color: #2B1810;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.deva { font-family: 'Tiro Devanagari Sanskrit', serif; }
+.sc   { font-family: 'Cormorant SC', serif; letter-spacing: 0.18em; }
+
+/* Background OM */
+.bg-om { position: fixed; pointer-events: none; user-select: none; font-family: 'Tiro Devanagari Sanskrit', serif; color: #8B4513; opacity: 0.07; z-index: 0; }
+.bg-om-1 { top: 4%; left: -4%; font-size: 22rem; animation: floatOm 9s ease-in-out infinite; }
+.bg-om-2 { bottom: 2%; right: -5%; font-size: 16rem; animation: floatOm 9s ease-in-out infinite; animation-delay: 4.5s; }
+@keyframes floatOm { 0%,100%{transform:translateY(0);opacity:.06} 50%{transform:translateY(-12px);opacity:.10} }
+
+.grain { position:fixed;inset:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");opacity:.28;mix-blend-mode:multiply;z-index:0; }
+
+.container { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 32px 20px 60px; }
+
+/* Ornament */
+.ornament-row { display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px; }
+.ornament { width:90px;height:20px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 24'%3E%3Cg fill='none' stroke='%238B4513' stroke-width='1' opacity='0.55'%3E%3Cline x1='0' y1='12' x2='52' y2='12'/%3E%3Cline x1='88' y1='12' x2='140' y2='12'/%3E%3Ccircle cx='70' cy='12' r='4'/%3E%3Ccircle cx='58' cy='12' r='1.5' fill='%238B4513'/%3E%3Ccircle cx='82' cy='12' r='1.5' fill='%238B4513'/%3E%3C/g%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center; }
+.ornament.flip { transform:scaleX(-1); }
+.om-mark { font-size: 2.2rem; color: #9C2A12; }
+
+/* Event banner */
+.event-banner {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.event-title { font-size: clamp(1.5rem, 6vw, 2rem); color: #3A1F0F; margin: 8px 0 4px; }
+.event-meta { font-size: 0.82rem; color: #8B4513; letter-spacing: 0.1em; margin-top: 6px; }
+
+/* Card */
+.card {
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(139,69,19,0.2);
+  border-radius: 14px;
+  padding: 24px 22px;
+  margin-bottom: 16px;
+}
+
+/* Join form */
+.join-heading { font-size: 1.15rem; color: #3A1F0F; text-align: center; margin-bottom: 18px; line-height: 1.4; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display:block; font-size:0.76rem; color:#8B4513; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:5px; }
+.form-group input {
+  width: 100%; padding: 12px 14px;
+  border: 1px solid rgba(139,69,19,0.35);
+  border-radius: 8px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  background: rgba(255,255,255,0.8);
+  color: #2B1810;
+  transition: border 0.18s;
+}
+.form-group input:focus { outline: none; border-color: #9C2A12; }
+.btn-join {
+  width: 100%; padding: 14px;
+  background: #9C2A12; color: #fff;
+  border: none; border-radius: 8px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.15rem; cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: opacity 0.18s, transform 0.1s;
+}
+.btn-join:active { transform: scale(0.98); }
+.btn-join:disabled { opacity: 0.45; cursor: not-allowed; }
+.error-msg { color: #c0392b; font-size: 0.88rem; margin-top: 10px; text-align: center; }
+
+/* ── Counting screen ────────────────────────── */
+.welcome-msg {
+  text-align: center;
+  font-size: 1rem;
+  color: #5C2E0A;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+.welcome-msg strong { color: #9C2A12; font-size: 1.15rem; }
+
+/* Big counter */
+.counter-card {
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(139,69,19,0.2);
+  border-radius: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.counter-label { font-size: 0.75rem; color: #8B4513; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 12px; font-family: 'Cormorant SC', serif; }
+.counter-number {
+  font-size: clamp(4rem, 20vw, 6.5rem);
+  font-weight: 700;
+  color: #9C2A12;
+  line-height: 1;
+  margin-bottom: 24px;
+  transition: transform 0.12s;
+}
+.counter-number.bump { transform: scale(1.08); }
+
+.counter-controls { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.btn-big {
+  width: 72px; height: 72px;
+  border-radius: 50%; border: none;
+  font-size: 2rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.1s, opacity 0.15s;
+  -webkit-user-select: none; user-select: none;
+}
+.btn-big:active { transform: scale(0.88); }
+.btn-big:disabled { opacity: 0.25; cursor: not-allowed; }
+.btn-big-dec { background: rgba(139,69,19,0.1); color: #8B4513; font-size: 1.8rem; }
+.btn-big-inc {
+  width: 90px; height: 90px;
+  background: #9C2A12; color: #fff;
+  font-size: 2.4rem;
+  box-shadow: 0 4px 18px rgba(156,42,18,0.35);
+}
+
+/* Event total */
+.event-total-bar {
+  background: rgba(255,255,255,0.45);
+  border: 1px solid rgba(139,69,19,0.15);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  color: #5C2E0A;
+}
+.event-total-bar .total-count { font-size: 1.3rem; font-weight: 600; color: #9C2A12; }
+
+/* Sync status */
+.sync-status { font-size: 0.72rem; color: #aaa; text-align: center; margin-bottom: 10px; letter-spacing: 0.1em; }
+.sync-dot { display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle; }
+.sync-dot.syncing { background:#f0a500; animation: pulse 0.8s ease-in-out infinite; }
+.sync-dot.ok { background:#4caf50; }
+.sync-dot.err { background:#e53935; }
+@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+/* Nav */
+.bottom-nav { text-align: center; margin-top: 8px; }
+.bottom-nav a { font-size: 0.78rem; color: #8B4513; text-decoration: none; letter-spacing: 0.12em; opacity: 0.75; }
+.bottom-nav a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Loading / Error */
+.center-msg { text-align: center; padding: 80px 20px; color: #8B4513; font-size: 1rem; line-height: 1.7; }
+.center-msg .big { font-size: 2.5rem; margin-bottom: 12px; }
+
+/* Inactive badge */
+.inactive-badge {
+  display: inline-block;
+  background: rgba(139,69,19,0.12);
+  color: #8B4513;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-top: 8px;
+  font-family: 'Cormorant SC', serif;
+}
+</style>
+</head>
+<body>
+<div class="bg-om bg-om-1">ॐ</div>
+<div class="bg-om bg-om-2">ॐ</div>
+<div class="grain"></div>
+
+<div class="container" id="app">
+  <div class="center-msg"><div class="big">🙏</div>Loading…</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://lxwujdsbcnhschxekntd.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4d3VqZHNiY25oc2NoeGVrbnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDUwMTcsImV4cCI6MjA5NTc4MTAxN30.MDAtdMCdZL1jDd880XU_0mPPmSTWT1udoPzBs9dE5uM";
+const BASE_URL     = "https://chimedallas.github.io/parayana-counter";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let eventId      = null;
+let eventData    = null;   // from event_summary
+let participantId = null;
+let myName       = '';
+let myCount      = 0;
+let eventTotal   = 0;
+let joined       = false;
+let screen       = 'loading';  // 'loading'|'error'|'inactive'|'join'|'counting'
+let errorMsg     = '';
+let joinBusy     = false;
+let joinError    = '';
+let syncStatus   = 'ok';  // 'ok'|'syncing'|'err'
+let realtimeSub  = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+
+async function rpc(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = text;
+    try { const j = JSON.parse(text); msg = j.message || j.hint || text; } catch {}
+    throw new Error(msg);
+  }
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const params = new URLSearchParams(location.search);
+  eventId = params.get('event');
+
+  if (!eventId) {
+    screen = 'error';
+    errorMsg = 'No event specified in the link. Please scan the QR code again.';
+    render(); return;
+  }
+
+  // Load event details from event_summary view
+  const { data, error } = await sb
+    .from('event_summary')
+    .select('*')
+    .eq('event_id', eventId)
+    .maybeSingle();
+
+  if (error || !data) {
+    screen = 'error';
+    errorMsg = 'Event not found. The link may be outdated — please ask the organiser for a fresh QR code.';
+    render(); return;
+  }
+
+  eventData  = data;
+  eventTotal = data.total_count || 0;
+
+  // Check for existing join in localStorage
+  const saved = JSON.parse(localStorage.getItem(`parayana_join_${eventId}`) || 'null');
+  if (saved?.participantId && saved?.name) {
+    participantId = saved.participantId;
+    myName        = saved.name;
+    joined = true;
+    await loadMyCount();
+    screen = 'counting';
+    subscribeToEvent();
+  } else {
+    screen = eventData.is_active ? 'join' : 'inactive';
+  }
+
+  render();
+}
+
+async function loadMyCount() {
+  if (!participantId || !eventId) return;
+  const { data } = await sb.from('event_entries')
+    .select('count')
+    .eq('event_id', eventId)
+    .eq('participant_id', participantId)
+    .maybeSingle();
+  myCount = data?.count || 0;
+}
+
+// ── Real-time ─────────────────────────────────────────────────────────────────
+function subscribeToEvent() {
+  if (realtimeSub) sb.removeChannel(realtimeSub);
+
+  realtimeSub = sb.channel(`join_${eventId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'event_entries',
+      filter: `event_id=eq.${eventId}`
+    }, payload => {
+      // Update event total
+      if (payload.new) {
+        // Re-fetch total
+        sb.from('event_summary')
+          .select('total_count')
+          .eq('event_id', eventId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) { eventTotal = data.total_count || 0; render(); }
+          });
+        // If this is my entry, update my count
+        if (payload.new.participant_id === participantId) {
+          myCount = payload.new.count;
+          render();
+        }
+      }
+    })
+    .subscribe();
+}
+
+// ── Join ──────────────────────────────────────────────────────────────────────
+async function submitJoin() {
+  const nameEl = document.getElementById('name-input');
+  const name = (nameEl?.value || '').trim();
+  if (!name) { joinError = 'Please enter your name.'; render(); return; }
+
+  joinBusy = true; joinError = ''; render();
+
+  try {
+    const pid = await rpc('add_chanter_to_event', {
+      p_event_id: eventId,
+      p_name: name
+    });
+    if (!pid) throw new Error('Could not join — please try again.');
+
+    participantId = pid;
+    myName = name;
+    joined = true;
+
+    // Persist so refreshing doesn't require re-entering name
+    localStorage.setItem(`parayana_join_${eventId}`, JSON.stringify({ participantId: pid, name }));
+
+    await loadMyCount();
+    screen = 'counting';
+    subscribeToEvent();
+  } catch (e) {
+    joinError = e.message.replace(/^.*?EXCEPTION:\s*/i, '');
+  }
+
+  joinBusy = false;
+  render();
+}
+
+// ── Counting ──────────────────────────────────────────────────────────────────
+async function increment() {
+  myCount++;
+  eventTotal++;
+  syncStatus = 'syncing';
+  animateBump();
+  render();
+
+  try {
+    await rpc('update_chant_count', {
+      p_event_id:      eventId,
+      p_participant_id: participantId,
+      p_delta:          1
+    });
+    syncStatus = 'ok';
+  } catch (e) {
+    myCount--;
+    eventTotal--;
+    syncStatus = 'err';
+    console.error(e);
+  }
+  render();
+}
+
+async function decrement() {
+  if (myCount <= 0) return;
+  myCount--;
+  eventTotal--;
+  syncStatus = 'syncing';
+  render();
+
+  try {
+    await rpc('update_chant_count', {
+      p_event_id:      eventId,
+      p_participant_id: participantId,
+      p_delta:         -1
+    });
+    syncStatus = 'ok';
+  } catch (e) {
+    myCount++;
+    eventTotal++;
+    syncStatus = 'err';
+    console.error(e);
+  }
+  render();
+}
+
+function animateBump() {
+  const el = document.getElementById('count-num');
+  if (!el) return;
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 150);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('app').innerHTML = buildHTML();
+  attachListeners();
+}
+
+function buildHeader() {
+  if (!eventData) return '';
+  const date = fmtDate(eventData.event_date);
+  const loc  = eventData.location_name
+    ? `${eventData.location_name}, ${eventData.location_city || ''}`
+    : '';
+  return `
+    <div class="event-banner">
+      <div class="ornament-row">
+        <div class="ornament"></div>
+        <span class="om-mark deva">ॐ</span>
+        <div class="ornament flip"></div>
+      </div>
+      <h1 class="deva event-title">${esc(eventData.parayana_type || 'Parayana')}</h1>
+      <div class="event-meta sc">${esc(eventData.title || '')}</div>
+      <div class="event-meta" style="margin-top:4px;">${esc(date)}${loc ? ' · ' + esc(loc) : ''}</div>
+      ${!eventData.is_active ? '<div><span class="inactive-badge">Event Concluded</span></div>' : ''}
+    </div>
+  `;
+}
+
+function buildHTML() {
+  if (screen === 'loading') {
+    return `<div class="center-msg"><div class="big">🙏</div>Loading…</div>`;
+  }
+
+  if (screen === 'error') {
+    return `<div class="center-msg"><div class="big">🙏</div>${esc(errorMsg)}</div>`;
+  }
+
+  if (screen === 'inactive') {
+    return `
+      ${buildHeader()}
+      <div class="card" style="text-align:center;">
+        <p style="color:#8B4513;font-size:1rem;line-height:1.7;">
+          This event has concluded.<br>
+          Thank you for participating! 🙏
+        </p>
+        <p style="margin-top:16px;">
+          <a href="history.html" style="color:#9C2A12;font-size:0.85rem;letter-spacing:0.1em;">
+            View Event History →
+          </a>
+        </p>
+      </div>
+    `;
+  }
+
+  if (screen === 'join') {
+    return `
+      ${buildHeader()}
+      <div class="card">
+        <p class="join-heading">Enter your name to join<br>and track your recitations</p>
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="name-input" type="text" placeholder="e.g. Smt. Kamala Devi"
+            autocomplete="name" autocapitalize="words" />
+        </div>
+        <button class="btn-join" onclick="submitJoin()" ${joinBusy ? 'disabled' : ''}>
+          ${joinBusy ? '…' : '🙏 Join &amp; Start Counting'}
+        </button>
+        ${joinError ? `<p class="error-msg">${esc(joinError)}</p>` : ''}
+      </div>
+      <div class="bottom-nav">
+        <a href="parayana-counter.html">← View Full Tally</a>
+      </div>
+    `;
+  }
+
+  // counting screen
+  const syncLabel = syncStatus === 'syncing' ? 'syncing…'
+                  : syncStatus === 'err'     ? 'sync error — tap again'
+                  : 'synced';
+  const dotClass  = syncStatus;
+
+  return `
+    ${buildHeader()}
+
+    <div class="counter-card">
+      <div class="counter-label sc">My Recitations</div>
+      <div class="counter-number" id="count-num">${myCount}</div>
+      <div class="counter-controls">
+        <button class="btn-big btn-big-dec"
+          onclick="decrement()" ${myCount === 0 ? 'disabled' : ''}>−</button>
+        <button class="btn-big btn-big-inc" onclick="increment()">+</button>
+      </div>
+    </div>
+
+    <div class="sync-status">
+      <span class="sync-dot ${dotClass}"></span>${syncLabel}
+    </div>
+
+    <div class="event-total-bar">
+      <span>Group total</span>
+      <span class="total-count">${eventTotal.toLocaleString('en-IN')}</span>
+    </div>
+
+    <div class="bottom-nav" style="margin-bottom:12px;">
+      Logged in as <strong>${esc(myName)}</strong> &nbsp;·&nbsp;
+      <a href="#" onclick="clearAndRejoin();return false;">Not you?</a>
+    </div>
+    <div class="bottom-nav">
+      <a href="parayana-counter.html">← View Full Group Tally</a>
+    </div>
+  `;
+}
+
+function attachListeners() {
+  const nameEl = document.getElementById('name-input');
+  if (nameEl) {
+    nameEl.focus();
+    nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') submitJoin(); });
+  }
+}
+
+function clearAndRejoin() {
+  localStorage.removeItem(`parayana_join_${eventId}`);
+  if (realtimeSub) sb.removeChannel(realtimeSub);
+  participantId = null; myName = ''; myCount = 0;
+  joined = false;
+  screen = eventData?.is_active ? 'join' : 'inactive';
+  joinError = '';
+  render();
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
