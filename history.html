@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#EDD9A8" />
+<title>Parayana History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Tiro+Devanagari+Sanskrit&family=Cormorant+SC:wght@500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { min-height: 100vh; }
+body {
+  font-family: 'Cormorant Garamond', serif;
+  background: radial-gradient(ellipse at top, #F8E9C8 0%, #EDD9A8 55%, #E2C684 100%);
+  background-attachment: fixed;
+  color: #2B1810;
+}
+.deva { font-family: 'Tiro Devanagari Sanskrit', serif; }
+.sc   { font-family: 'Cormorant SC', serif; letter-spacing: 0.18em; }
+
+/* Background ॐ */
+.bg-om { position: fixed; pointer-events: none; user-select: none; font-family: 'Tiro Devanagari Sanskrit', serif; color: #8B4513; opacity: 0.06; z-index: 0; }
+.bg-om-1 { top: 5%; left: -3%; font-size: 18rem; animation: floatOm 8s ease-in-out infinite; }
+.bg-om-2 { bottom: 3%; right: -4%; font-size: 14rem; animation: floatOm 8s ease-in-out infinite; animation-delay: 4s; }
+@keyframes floatOm { 0%,100%{transform:translateY(0) rotate(0deg);opacity:.05} 50%{transform:translateY(-12px) rotate(2deg);opacity:.09} }
+
+.grain {
+  position: fixed; inset: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.28; mix-blend-mode: multiply; z-index: 0;
+}
+
+.container {
+  position: relative; z-index: 1;
+  max-width: 860px; margin: 0 auto; padding: 32px 20px 80px;
+}
+
+/* Header */
+header { text-align: center; margin-bottom: 36px; }
+.ornament-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.ornament {
+  width: 110px; height: 22px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 24'%3E%3Cg fill='none' stroke='%238B4513' stroke-width='1' opacity='0.55'%3E%3Cline x1='0' y1='12' x2='52' y2='12'/%3E%3Cline x1='88' y1='12' x2='140' y2='12'/%3E%3Ccircle cx='70' cy='12' r='4'/%3E%3Ccircle cx='58' cy='12' r='1.5' fill='%238B4513'/%3E%3Ccircle cx='82' cy='12' r='1.5' fill='%238B4513'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: center;
+}
+.ornament.flip { transform: scaleX(-1); }
+.om-mark  { font-size: 2rem; color: #9C2A12; }
+.title-deva { font-size: clamp(1.6rem, 6vw, 2.2rem); color: #3A1F0F; line-height: 1.1; margin-bottom: 4px; }
+.subtitle   { font-size: 0.78rem; color: #8B4513; letter-spacing: 0.25em; text-transform: uppercase; }
+.header-nav { margin-top: 14px; }
+.header-nav a {
+  font-size: 0.78rem; color: #5C2E0A; text-decoration: none; letter-spacing: 0.15em;
+  opacity: 0.7; font-style: italic;
+}
+.header-nav a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Summary cards */
+.summary-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  margin-bottom: 28px;
+}
+@media (max-width: 500px) { .summary-grid { grid-template-columns: 1fr; } }
+.summary-card {
+  background: rgba(255,250,240,0.82);
+  border: 1px solid rgba(139,69,19,0.2);
+  border-radius: 2px; padding: 20px 16px; text-align: center;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 12px -6px rgba(139,69,19,0.25);
+}
+.summary-value {
+  font-size: clamp(2rem, 7vw, 3rem); font-weight: 300;
+  color: #3A1F0F; line-height: 1; margin-bottom: 6px;
+}
+.summary-label { font-size: 0.72rem; color: #8B4513; letter-spacing: 0.2em; text-transform: uppercase; font-family: 'Cormorant SC', serif; }
+
+/* Section */
+.section { margin-bottom: 32px; }
+.section-title {
+  font-family: 'Cormorant SC', serif; font-size: 0.8rem;
+  letter-spacing: 0.22em; color: #3A1F0F;
+  margin-bottom: 14px; padding-bottom: 8px;
+  border-bottom: 1px solid rgba(139,69,19,0.18);
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title svg { width: 14px; height: 14px; color: #9C2A12; flex-shrink: 0; }
+
+/* Chart card */
+.chart-card {
+  background: rgba(255,250,240,0.82);
+  border: 1px solid rgba(139,69,19,0.2);
+  border-radius: 2px; padding: 20px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+}
+.chart-wrap { position: relative; height: 220px; }
+
+/* Events table */
+.events-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.events-table th {
+  text-align: left; font-family: 'Cormorant SC', serif; font-size: 0.68rem;
+  letter-spacing: 0.18em; color: #8B4513; padding: 8px 10px;
+  border-bottom: 1px solid rgba(139,69,19,0.18); white-space: nowrap;
+}
+.events-table td { padding: 11px 10px; border-bottom: 1px solid rgba(139,69,19,0.08); vertical-align: middle; }
+.events-table tr:last-child td { border-bottom: none; }
+.events-table tbody tr:hover td { background: rgba(139,69,19,0.03); cursor: pointer; }
+.badge-active   { display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.68rem;font-family:'Cormorant SC',serif;background:rgba(42,107,42,0.12);color:#2A6B2A; }
+.badge-inactive { display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.68rem;font-family:'Cormorant SC',serif;background:rgba(139,69,19,0.1);color:#8B4513; }
+
+/* Leaderboard */
+.leaderboard-list { display: flex; flex-direction: column; gap: 8px; }
+.lb-row {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,250,240,0.82);
+  border: 1px solid rgba(139,69,19,0.15);
+  border-radius: 2px; padding: 12px 16px;
+}
+.lb-row.gold   { border-color: rgba(200,155,60,0.4); background: rgba(255,248,220,0.9); }
+.lb-row.silver { border-color: rgba(150,150,160,0.3); }
+.lb-row.bronze { border-color: rgba(160,100,60,0.3); }
+.lb-rank { font-family:'Cormorant SC',serif; font-size:0.85rem; color:#8B4513; width:28px; flex-shrink:0; text-align:center; }
+.lb-name { flex:1; font-size:1.1rem; color:#2B1810; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lb-stat { text-align:right; flex-shrink:0; }
+.lb-count { font-size:1.6rem; font-weight:300; color:#3A1F0F; line-height:1; }
+.lb-events{ font-size:0.72rem; color:#8B4513; font-style:italic; }
+.flame { width:14px;height:14px;color:#9C2A12;flex-shrink:0; }
+
+/* Loading */
+.loading-state { text-align:center; padding:60px 20px; color:#8B4513; font-style:italic; }
+.spinner { width:28px;height:28px;border:2px solid rgba(139,69,19,0.2);border-top-color:#9C2A12;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Event detail panel */
+.detail-panel {
+  background: rgba(255,250,240,0.95);
+  border: 1px solid rgba(139,69,19,0.25);
+  border-radius: 2px; padding: 20px;
+  margin-top: 10px; animation: slideDown 0.2s ease-out;
+}
+@keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.detail-title { font-family:'Cormorant SC',serif;font-size:0.78rem;letter-spacing:0.18em;color:#3A1F0F;margin-bottom:12px; }
+.detail-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px; }
+.detail-entry {
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:6px 10px;background:rgba(139,69,19,0.04);border-radius:2px;
+  font-size:0.9rem;
+}
+.detail-entry .dn { color:#2B1810; }
+.detail-entry .dc { font-weight:500;color:#3A1F0F; }
+.close-detail { font-size:0.75rem;color:#8B4513;cursor:pointer;font-style:italic;float:right;margin-top:-2px; }
+
+/* Table wrapper */
+.table-wrap {
+  background: rgba(255,250,240,0.82);
+  border: 1px solid rgba(139,69,19,0.2);
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+  overflow-x: auto;
+}
+</style>
+</head>
+<body>
+<div class="bg-om bg-om-1 deva">ॐ</div>
+<div class="bg-om bg-om-2 deva">ॐ</div>
+<div class="grain"></div>
+
+<div class="container">
+  <header>
+    <div class="ornament-row">
+      <div class="ornament"></div>
+      <span class="om-mark deva">ॐ</span>
+      <div class="ornament flip"></div>
+    </div>
+    <h1 class="deva title-deva">श्री विष्णु सहस्रनाम</h1>
+    <p class="subtitle sc">Parayana History</p>
+    <p class="header-nav"><a href="parayana-counter.html">← Live Tally</a></p>
+  </header>
+
+  <div id="app"><div class="loading-state"><div class="spinner"></div>Loading history…</div></div>
+</div>
+
+<script>
+const SUPABASE_URL      = "https://lxwujdsbcnhschxekntd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4d3VqZHNiY25oc2NoeGVrbnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDUwMTcsImV4cCI6MjA5NTc4MTAxN30.MDAtdMCdZL1jDd880XU_0mPPmSTWT1udoPzBs9dE5uM";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let events     = [];
+let topPeople  = [];
+let expandedId = null;
+let detailCache = {};
+let chart      = null;
+
+function fmt(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+function fmtNum(n) { return Number(n).toLocaleString('en-IN'); }
+
+async function load() {
+  const [evRes, lpRes] = await Promise.all([
+    sb.from('event_summary').select('*').order('event_date', { ascending: true }),
+    sb.from('lifetime_stats').select('*').order('lifetime_count', { ascending: false }).limit(25)
+  ]);
+  events    = evRes.data  || [];
+  topPeople = lpRes.data  || [];
+  render();
+}
+
+async function loadDetail(eventId) {
+  if (detailCache[eventId]) return detailCache[eventId];
+  const { data } = await sb
+    .from('event_entries')
+    .select('count, participants(name)')
+    .eq('event_id', eventId)
+    .order('count', { ascending: false });
+  detailCache[eventId] = (data || []).map(e => ({ name: e.participants?.name, count: e.count }));
+  return detailCache[eventId];
+}
+
+async function toggleDetail(eventId) {
+  if (expandedId === eventId) { expandedId = null; render(); return; }
+  expandedId = eventId;
+  render();
+  if (!detailCache[eventId]) {
+    await loadDetail(eventId);
+    render();
+  }
+}
+
+function renderSummary() {
+  const totalEvents = events.length;
+  const totalRecs   = events.reduce((s, e) => s + Number(e.total_recitations), 0);
+  const totalChanters = topPeople.length;
+  return `
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-value">${totalEvents}</div>
+        <div class="summary-label">Events</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value">${fmtNum(totalRecs)}</div>
+        <div class="summary-label">Total Recitations</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value">${totalChanters}</div>
+        <div class="summary-label">Chanters</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderChart() {
+  return `
+    <div class="section">
+      <p class="section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Recitations Per Event
+      </p>
+      <div class="chart-card">
+        <div class="chart-wrap"><canvas id="recChart"></canvas></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEvents() {
+  const sorted = [...events].sort((a,b) => new Date(b.event_date) - new Date(a.event_date));
+  const rows = sorted.map(ev => {
+    const isExpanded = expandedId === ev.id;
+    const detail = detailCache[ev.id];
+    const detailHtml = isExpanded ? `
+      <tr>
+        <td colspan="6" style="padding:0 10px 14px;">
+          <div class="detail-panel">
+            <span class="close-detail" onclick="toggleDetail('${ev.id}')">close ×</span>
+            <p class="detail-title">${ev.title} — ${ev.participant_count} chanters</p>
+            ${!detail
+              ? `<p style="color:#8B4513;font-style:italic;font-size:0.85rem;">Loading…</p>`
+              : `<div class="detail-grid">
+                  ${detail.map(e => `
+                    <div class="detail-entry">
+                      <span class="dn">${e.name}</span>
+                      <span class="dc">${e.count}</span>
+                    </div>`).join('')}
+                </div>`
+            }
+          </div>
+        </td>
+      </tr>` : '';
+    return `
+      <tr onclick="toggleDetail('${ev.id}')">
+        <td>${fmt(ev.event_date)}</td>
+        <td style="font-weight:500;">${ev.title}</td>
+        <td style="font-size:0.88rem;color:#5C2E0A;">${ev.location_name ? `${ev.location_name}, ${ev.location_city}` : '—'}</td>
+        <td style="font-size:0.88rem;">${ev.parayana_type || '—'}</td>
+        <td style="text-align:right;">${fmtNum(ev.participant_count)}</td>
+        <td style="text-align:right;font-weight:500;">${fmtNum(ev.total_recitations)}</td>
+      </tr>
+      ${detailHtml}
+    `;
+  }).join('');
+
+  return `
+    <div class="section">
+      <p class="section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        All Events
+      </p>
+      <div class="table-wrap">
+        <table class="events-table">
+          <thead><tr>
+            <th>Date</th><th>Event</th><th>Location</th><th>Type</th>
+            <th style="text-align:right">Chanters</th>
+            <th style="text-align:right">Recitations</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p style="font-size:0.75rem;color:#8B4513;font-style:italic;margin-top:8px;text-align:right;">Click any row to see participant details</p>
+    </div>
+  `;
+}
+
+function renderLeaderboard() {
+  const medals = ['🥇','🥈','🥉'];
+  const classes = ['gold','silver','bronze'];
+  const items = topPeople.map((p, i) => `
+    <div class="lb-row ${classes[i] || ''}">
+      <span class="lb-rank">${medals[i] || i+1}</span>
+      ${i === 0 ? `<svg class="flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>` : ''}
+      <span class="lb-name">${p.name}</span>
+      <div class="lb-stat">
+        <div class="lb-count">${fmtNum(p.lifetime_count)}</div>
+        <div class="lb-events">${p.total_events} ${p.total_events === 1 ? 'event' : 'events'}</div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="section">
+      <p class="section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Lifetime Leaderboard
+      </p>
+      <div class="leaderboard-list">${items}</div>
+    </div>
+  `;
+}
+
+function initChart() {
+  const ctx = document.getElementById('recChart');
+  if (!ctx || !events.length) return;
+  if (chart) { chart.destroy(); }
+
+  const sorted = [...events].sort((a,b) => new Date(a.event_date) - new Date(b.event_date));
+  const labels = sorted.map(e => fmt(e.event_date));
+  const data   = sorted.map(e => Number(e.total_recitations));
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Recitations',
+        data,
+        backgroundColor: 'rgba(156, 42, 18, 0.7)',
+        borderColor: 'rgba(156, 42, 18, 0.9)',
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y.toLocaleString('en-IN')} recitations`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { family: 'Cormorant Garamond', size: 11 }, color: '#5C2E0A' },
+          grid: { display: false }
+        },
+        y: {
+          ticks: { font: { family: 'Cormorant Garamond', size: 11 }, color: '#5C2E0A' },
+          grid: { color: 'rgba(139,69,19,0.08)' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function render() {
+  const app = document.getElementById('app');
+  if (!events.length && !topPeople.length) {
+    app.innerHTML = `<div class="loading-state"><div class="spinner"></div>Loading history…</div>`;
+    return;
+  }
+  app.innerHTML = renderSummary() + renderChart() + renderEvents() + renderLeaderboard();
+  initChart();
+}
+
+load();
+</script>
+</body>
+</html>
