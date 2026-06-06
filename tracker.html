@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#EDD9A8" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="My Tracker" />
+<title>My Parayana Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Tiro+Devanagari+Sanskrit&family=Cormorant+SC:wght@500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { min-height: 100vh; }
+body {
+  font-family: 'Cormorant Garamond', serif;
+  background: radial-gradient(ellipse at top, #F8E9C8 0%, #EDD9A8 55%, #E2C684 100%);
+  background-attachment: fixed;
+  color: #2B1810;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.deva { font-family: 'Tiro Devanagari Sanskrit', serif; }
+.sc   { font-family: 'Cormorant SC', serif; letter-spacing: 0.18em; }
+
+/* Background OM */
+.bg-om { position: fixed; pointer-events: none; user-select: none; font-family: 'Tiro Devanagari Sanskrit', serif; color: #8B4513; opacity: 0.07; z-index: 0; }
+.bg-om-1 { top: 6%; left: -3%; font-size: 16rem; animation: floatOm 8s ease-in-out infinite; }
+.bg-om-2 { bottom: 4%; right: -4%; font-size: 12rem; animation: floatOm 8s ease-in-out infinite; animation-delay: 4s; }
+@keyframes floatOm { 0%,100%{transform:translateY(0);opacity:.06} 50%{transform:translateY(-10px);opacity:.10} }
+
+.grain {
+  position: fixed; inset: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.28; mix-blend-mode: multiply; z-index: 0;
+}
+
+.container { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: 28px 18px 80px; }
+
+/* Ornament */
+.ornament-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.ornament { width: 90px; height: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 24'%3E%3Cg fill='none' stroke='%238B4513' stroke-width='1' opacity='0.55'%3E%3Cline x1='0' y1='12' x2='52' y2='12'/%3E%3Cline x1='88' y1='12' x2='140' y2='12'/%3E%3Ccircle cx='70' cy='12' r='4'/%3E%3Ccircle cx='58' cy='12' r='1.5' fill='%238B4513'/%3E%3Ccircle cx='82' cy='12' r='1.5' fill='%238B4513'/%3E%3C/g%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
+.ornament.flip { transform: scaleX(-1); }
+.om-mark { font-size: 1.9rem; color: #9C2A12; }
+
+/* Header */
+header { text-align: center; margin-bottom: 24px; }
+.title-main { font-size: clamp(1.4rem, 5vw, 1.9rem); color: #3A1F0F; margin-top: 4px; }
+.subtitle { font-size: 0.75rem; color: #8B4513; letter-spacing: 0.25em; text-transform: uppercase; margin-top: 4px; }
+.header-nav { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.pill-link { font-size: 0.72rem; color: #9C2A12; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; border: 1px solid #9C2A12; border-radius: 20px; padding: 4px 12px; font-family: 'Cormorant SC', serif; transition: all 0.18s; }
+.pill-link:hover { background: #9C2A12; color: #fff; }
+
+/* Card */
+.card { background: rgba(255,255,255,0.62); backdrop-filter: blur(8px); border: 1px solid rgba(139,69,19,0.2); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+
+/* Login */
+.form-toggle { display: flex; margin-bottom: 20px; border: 1px solid #9C2A12; border-radius: 6px; overflow: hidden; }
+.toggle-btn { flex: 1; padding: 9px; background: none; border: none; font-family: 'Cormorant Garamond', serif; font-size: 1rem; cursor: pointer; color: #9C2A12; transition: all 0.18s; }
+.toggle-btn.active { background: #9C2A12; color: #fff; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.76rem; color: #8B4513; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 5px; }
+.form-group input { width: 100%; padding: 10px 12px; border: 1px solid rgba(139,69,19,0.35); border-radius: 6px; font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; background: rgba(255,255,255,0.75); color: #2B1810; transition: border 0.18s; }
+.form-group input:focus { outline: none; border-color: #9C2A12; }
+.btn-primary { width: 100%; padding: 12px; background: #9C2A12; color: #fff; border: none; border-radius: 6px; font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; cursor: pointer; letter-spacing: 0.08em; transition: opacity 0.18s; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.error-msg { color: #c0392b; font-size: 0.85rem; margin-top: 10px; text-align: center; min-height: 1.2em; }
+.hint-msg { margin-top: 12px; font-size: 0.8rem; color: #8B4513; text-align: center; line-height: 1.5; }
+
+/* Tracker top bar */
+.user-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.user-name { font-size: 1.05rem; color: #3A1F0F; }
+.user-name strong { color: #9C2A12; }
+.btn-logout { background: none; border: 1px solid rgba(139,69,19,0.45); color: #8B4513; border-radius: 20px; padding: 4px 12px; font-family: 'Cormorant Garamond', serif; font-size: 0.82rem; cursor: pointer; }
+.btn-logout:hover { border-color: #9C2A12; color: #9C2A12; }
+
+/* Date row */
+.date-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.date-label { font-size: 0.76rem; color: #8B4513; letter-spacing: 0.12em; text-transform: uppercase; }
+.date-input { border: 1px solid rgba(139,69,19,0.35); border-radius: 6px; padding: 6px 10px; font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; background: rgba(255,255,255,0.7); color: #2B1810; cursor: pointer; }
+.date-input:focus { outline: none; border-color: #9C2A12; }
+.btn-today { background: none; border: 1px solid #9C2A12; color: #9C2A12; border-radius: 20px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; font-family: 'Cormorant Garamond', serif; }
+
+/* Stats */
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
+.stat-box { background: rgba(255,255,255,0.55); border: 1px solid rgba(139,69,19,0.15); border-radius: 10px; padding: 12px 6px; text-align: center; }
+.stat-value { font-size: 1.7rem; color: #9C2A12; font-weight: 600; line-height: 1; }
+.stat-label { font-size: 0.66rem; color: #8B4513; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 5px; }
+
+/* Type cards grid */
+.types-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+@media (max-width: 380px) { .types-grid { grid-template-columns: 1fr; } }
+
+.type-card { background: rgba(255,255,255,0.62); border: 1px solid rgba(139,69,19,0.18); border-radius: 10px; padding: 14px 12px; text-align: center; }
+.type-name { font-size: 0.76rem; color: #5C2E0A; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; line-height: 1.4; min-height: 34px; display: flex; align-items: center; justify-content: center; }
+.count-display { font-size: 2.6rem; font-weight: 600; color: #9C2A12; line-height: 1; margin-bottom: 10px; position: relative; }
+.saving-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #9C2A12; position: absolute; top: 4px; right: -10px; animation: blink 0.8s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:0.2} 50%{opacity:1} }
+.count-controls { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.count-btn { width: 36px; height: 36px; border-radius: 50%; border: none; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s, opacity 0.15s; line-height: 1; }
+.count-btn:active { transform: scale(0.88); }
+.count-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-dec { background: rgba(139,69,19,0.1); color: #8B4513; }
+.btn-inc { background: #9C2A12; color: #fff; }
+.count-input { width: 52px; text-align: center; border: 1px solid rgba(139,69,19,0.3); border-radius: 4px; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; color: #9C2A12; background: transparent; padding: 2px 4px; }
+.count-input:focus { outline: none; border-color: #9C2A12; }
+/* hide number input arrows */
+.count-input::-webkit-outer-spin-button, .count-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.count-input[type=number] { -moz-appearance: textfield; }
+
+/* Section title */
+.section-title { font-size: 0.76rem; color: #5C2E0A; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 12px; font-family: 'Cormorant SC', serif; }
+
+/* History table */
+.history-wrap { overflow-x: auto; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.history-table th { font-size: 0.68rem; color: #8B4513; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; padding: 4px 6px 8px; border-bottom: 1px solid rgba(139,69,19,0.2); white-space: nowrap; }
+.history-table th:first-child { text-align: left; }
+.history-table td { padding: 7px 6px; border-bottom: 1px solid rgba(139,69,19,0.07); text-align: center; color: #9C2A12; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.history-table td:first-child { text-align: left; color: #3A1F0F; font-weight: 400; }
+.history-table tr:last-child td { border-bottom: none; }
+.history-table td.zero { color: #ccc; font-weight: 400; }
+.history-table tr.active-row td { background: rgba(156,42,18,0.05); }
+.today-badge { font-size: 0.65rem; color: #9C2A12; margin-left: 4px; font-family: 'Cormorant SC', serif; }
+
+.empty-state { text-align: center; padding: 28px 16px; color: #8B4513; font-size: 0.9rem; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="bg-om bg-om-1">ॐ</div>
+<div class="bg-om bg-om-2">ॐ</div>
+<div class="grain"></div>
+
+<div class="container" id="app">
+  <div style="text-align:center;padding:80px 0;color:#8B4513;font-size:1.1rem;">Loading…</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://lxwujdsbcnhschxekntd.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4d3VqZHNiY25oc2NoeGVrbnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDUwMTcsImV4cCI6MjA5NTc4MTAxN30.MDAtdMCdZL1jDd880XU_0mPPmSTWT1udoPzBs9dE5uM";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let screen       = 'login';   // 'login' | 'tracker'
+let loginMode    = 'login';   // 'login' | 'register'
+let participantId   = null;
+let participantName = null;
+let paranayaTypes   = [];
+let selectedDate    = todayStr();
+let todayCounts     = {};     // { typeId: count }
+let stats = { streak: 0, monthTotal: 0, allTotal: 0 };
+let historyRows     = [];     // [{chant_date, parayana_type_id, count}]
+let saving          = {};     // { typeId: bool }
+let formError  = '';
+let formBusy   = false;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short' });
+}
+
+async function rpc(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = text;
+    try { const j = JSON.parse(text); msg = j.message || j.hint || text; } catch {}
+    throw new Error(msg);
+  }
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const savedId   = localStorage.getItem('parayana_user_id');
+  const savedName = localStorage.getItem('parayana_user_name');
+
+  const { data: types } = await sb.from('parayana_types').select('id,name').order('name');
+  paranayaTypes = types || [];
+
+  if (savedId && savedName) {
+    participantId   = savedId;
+    participantName = savedName;
+    screen = 'tracker';
+    await loadData();
+  } else {
+    screen = 'login';
+  }
+  render();
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────────
+async function loadData() {
+  await Promise.all([loadCounts(), loadStats(), loadHistory()]);
+}
+
+async function loadCounts() {
+  if (!participantId) return;
+  const { data } = await sb.from('personal_chants')
+    .select('parayana_type_id, count')
+    .eq('participant_id', participantId)
+    .eq('chant_date', selectedDate);
+  todayCounts = {};
+  (data || []).forEach(r => { todayCounts[r.parayana_type_id] = r.count; });
+}
+
+async function loadStats() {
+  if (!participantId) return;
+  const { data } = await sb.from('personal_chants')
+    .select('chant_date, count')
+    .eq('participant_id', participantId)
+    .order('chant_date', { ascending: false });
+
+  const rows = data || [];
+  stats.allTotal   = rows.reduce((s, r) => s + (r.count || 0), 0);
+  const month      = todayStr().slice(0, 7);
+  stats.monthTotal = rows.filter(r => r.chant_date.startsWith(month)).reduce((s, r) => s + (r.count || 0), 0);
+
+  // Streak — consecutive days with any chant
+  const dateSet = new Set(rows.filter(r => r.count > 0).map(r => r.chant_date));
+  let streak = 0;
+  let d = new Date();
+  if (!dateSet.has(todayStr())) d.setDate(d.getDate() - 1);
+  while (true) {
+    const ds = d.toISOString().slice(0, 10);
+    if (dateSet.has(ds)) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  stats.streak = streak;
+}
+
+async function loadHistory() {
+  if (!participantId) return;
+  const from = new Date();
+  from.setDate(from.getDate() - 13);
+  const { data } = await sb.from('personal_chants')
+    .select('chant_date, parayana_type_id, count')
+    .eq('participant_id', participantId)
+    .gte('chant_date', from.toISOString().slice(0, 10))
+    .order('chant_date', { ascending: false });
+  historyRows = data || [];
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function submitLogin() {
+  const name = (document.getElementById('f-name')?.value || '').trim();
+  const pin  = (document.getElementById('f-pin')?.value  || '').trim();
+  if (!name || !pin) { formError = 'Please enter your name and PIN.'; render(); return; }
+  if (pin.length < 4) { formError = 'PIN must be at least 4 digits.'; render(); return; }
+
+  formBusy = true; formError = ''; render();
+
+  try {
+    if (loginMode === 'login') {
+      const id = await rpc('login_chanter', { p_name: name, p_pin: pin });
+      if (!id) throw new Error('Name or PIN not recognised. Check spelling or register.');
+      saveSession(id, name);
+    } else {
+      const result = await rpc('register_chanter', { p_name: name, p_pin: pin });
+      const id = result.id || result;
+      if (!id) throw new Error('Could not create account — try again.');
+      saveSession(id, name);
+    }
+  } catch (e) {
+    formError = e.message.replace(/^.*?EXCEPTION:\s*/i, '');
+    formBusy = false; render(); return;
+  }
+
+  formBusy = false;
+  screen = 'tracker';
+  await loadData();
+  render();
+}
+
+function saveSession(id, name) {
+  participantId   = id;
+  participantName = name;
+  localStorage.setItem('parayana_user_id',   id);
+  localStorage.setItem('parayana_user_name', name);
+}
+
+function logout() {
+  localStorage.removeItem('parayana_user_id');
+  localStorage.removeItem('parayana_user_name');
+  participantId = null; participantName = null;
+  screen = 'login'; todayCounts = {}; historyRows = [];
+  stats = { streak: 0, monthTotal: 0, allTotal: 0 };
+  render();
+}
+
+// ── Counting ─────────────────────────────────────────────────────────────────
+async function adjustCount(typeId, delta) {
+  const cur  = todayCounts[typeId] || 0;
+  const next = Math.max(0, cur + delta);
+  todayCounts[typeId] = next;
+  saving[typeId] = true;
+  render();
+
+  try {
+    const serverCount = await rpc('log_personal_chant', {
+      p_participant_id:   participantId,
+      p_parayana_type_id: typeId,
+      p_date:             selectedDate,
+      p_delta:            delta
+    });
+    todayCounts[typeId] = serverCount;
+    loadStats().then(() => render());
+  } catch (e) {
+    todayCounts[typeId] = cur; // rollback
+    console.error(e);
+  }
+  saving[typeId] = false;
+  render();
+}
+
+async function setCountDirect(typeId, val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n < 0) return;
+  todayCounts[typeId] = n;
+  saving[typeId] = true;
+  render();
+
+  try {
+    await rpc('set_personal_chant', {
+      p_participant_id:   participantId,
+      p_parayana_type_id: typeId,
+      p_date:             selectedDate,
+      p_count:            n
+    });
+    loadStats().then(() => render());
+  } catch (e) { console.error(e); }
+  saving[typeId] = false;
+  render();
+}
+
+async function changeDate(dateStr) {
+  selectedDate = dateStr;
+  await loadCounts();
+  render();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('app').innerHTML =
+    screen === 'login' ? renderLogin() : renderTracker();
+  attachListeners();
+}
+
+function renderHeader(showNav = true) {
+  return `
+    <header>
+      <div class="ornament-row">
+        <div class="ornament"></div>
+        <span class="om-mark deva">ॐ</span>
+        <div class="ornament flip"></div>
+      </div>
+      <h1 class="deva title-main">My Parayana Tracker</h1>
+      <p class="subtitle sc">Personal Daily Chant Log</p>
+      ${showNav ? `
+      <nav class="header-nav">
+        <a href="parayana-counter.html" class="pill-link">🙏 Live Tally</a>
+        <a href="history.html" class="pill-link">📜 Group History</a>
+      </nav>` : ''}
+    </header>
+  `;
+}
+
+function renderLogin() {
+  return `
+    ${renderHeader()}
+    <div class="card">
+      <div class="form-toggle">
+        <button class="toggle-btn ${loginMode === 'login' ? 'active' : ''}"
+          onclick="loginMode='login';formError='';render()">Log In</button>
+        <button class="toggle-btn ${loginMode === 'register' ? 'active' : ''}"
+          onclick="loginMode='register';formError='';render()">Register</button>
+      </div>
+      <div class="form-group">
+        <label>Your Name</label>
+        <input id="f-name" type="text" placeholder="As used at events" autocomplete="name" />
+      </div>
+      <div class="form-group">
+        <label>PIN (4 digits)</label>
+        <input id="f-pin" type="password" inputmode="numeric" maxlength="6"
+          placeholder="••••" autocomplete="${loginMode === 'login' ? 'current-password' : 'new-password'}" />
+      </div>
+      <button class="btn-primary" onclick="submitLogin()" ${formBusy ? 'disabled' : ''}>
+        ${formBusy ? '…' : (loginMode === 'login' ? 'Log In' : 'Create Account')}
+      </button>
+      <p class="error-msg">${esc(formError)}</p>
+      ${loginMode === 'register' ? `
+        <p class="hint-msg">Already participated in a Parayana event? Use the same name and set a PIN to claim your event history too.</p>
+      ` : `
+        <p class="hint-msg">New here? Switch to Register above.</p>
+      `}
+    </div>
+  `;
+}
+
+function renderTracker() {
+  const isToday = selectedDate === todayStr();
+
+  // Build history map: date → typeId → count
+  const histMap = {};
+  historyRows.forEach(r => {
+    if (!histMap[r.chant_date]) histMap[r.chant_date] = {};
+    histMap[r.chant_date][r.parayana_type_id] = r.count;
+  });
+
+  // Unique dates from history + today, sorted descending, up to 10
+  const dateSet = new Set([todayStr(), ...historyRows.map(r => r.chant_date)]);
+  const recentDates = [...dateSet].sort().reverse().slice(0, 10);
+
+  // Short type name for table header
+  function shortName(name) {
+    const map = {
+      'Vishnu Sahasranama': 'Vishnu',
+      'Lalitha Sahasranama': 'Lalitha',
+      'Shiva Sahasranama': 'Shiva',
+      'Aditya Hrudayam': 'Aditya',
+      'Hanuman Chalisa': 'Hanuman'
+    };
+    return map[name] || name.split(' ')[0];
+  }
+
+  return `
+    ${renderHeader()}
+
+    <div class="user-bar">
+      <div class="user-name">🙏 <strong>${esc(participantName)}</strong></div>
+      <button class="btn-logout" onclick="logout()">Log out</button>
+    </div>
+
+    <!-- Date -->
+    <div class="date-row">
+      <span class="date-label">Date</span>
+      <input type="date" class="date-input" id="date-pick"
+        value="${selectedDate}" max="${todayStr()}"
+        onchange="changeDate(this.value)" />
+      ${!isToday ? `<button class="btn-today" onclick="changeDate('${todayStr()}')">Today</button>` : ''}
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-value">${stats.streak > 0 ? '🔥' : ''}${stats.streak}</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${stats.monthTotal.toLocaleString('en-IN')}</div>
+        <div class="stat-label">This Month</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${stats.allTotal.toLocaleString('en-IN')}</div>
+        <div class="stat-label">All Time</div>
+      </div>
+    </div>
+
+    <!-- Chant type cards -->
+    <div class="types-grid">
+      ${paranayaTypes.map(t => {
+        const count = todayCounts[t.id] || 0;
+        const isSaving = saving[t.id];
+        return `
+          <div class="type-card">
+            <div class="type-name">
+              ${esc(t.name)}
+              ${isSaving ? '<span class="saving-dot"></span>' : ''}
+            </div>
+            <div class="count-display">${count}</div>
+            <div class="count-controls">
+              <button class="count-btn btn-dec"
+                onclick="adjustCount('${t.id}', -1)"
+                ${count === 0 ? 'disabled' : ''}>−</button>
+              <input class="count-input" type="number" min="0"
+                value="${count}"
+                data-type-id="${t.id}"
+                onblur="setCountDirect('${t.id}', this.value)"
+                onkeydown="if(event.key==='Enter') this.blur()"
+                onclick="this.select()" />
+              <button class="count-btn btn-inc"
+                onclick="adjustCount('${t.id}', 1)">+</button>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+
+    <!-- History table -->
+    <div class="card">
+      <div class="section-title">Last 10 Days</div>
+      ${recentDates.length === 0 ? `
+        <div class="empty-state">No entries yet.<br>Start logging above! 🙏</div>
+      ` : `
+      <div class="history-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              ${paranayaTypes.map(t => `<th>${shortName(t.name)}</th>`).join('')}
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recentDates.map(d => {
+              const dayData = histMap[d] || {};
+              const total = paranayaTypes.reduce((s, t) => s + (dayData[t.id] || 0), 0);
+              const isActive = d === selectedDate;
+              return `
+                <tr class="${isActive ? 'active-row' : ''}" onclick="changeDate('${d}')">
+                  <td>
+                    ${fmtDate(d)}
+                    ${d === todayStr() ? '<span class="today-badge">today</span>' : ''}
+                  </td>
+                  ${paranayaTypes.map(t => {
+                    const c = dayData[t.id] || 0;
+                    return `<td class="${c === 0 ? 'zero' : ''}">${c || '—'}</td>`;
+                  }).join('')}
+                  <td style="font-weight:600;color:${total > 0 ? '#9C2A12' : '#ccc'}">${total || '—'}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`}
+    </div>
+  `;
+}
+
+function attachListeners() {
+  const nameEl = document.getElementById('f-name');
+  const pinEl  = document.getElementById('f-pin');
+  if (nameEl) nameEl.addEventListener('keydown', e => { if (e.key === 'Enter' && pinEl) pinEl.focus(); });
+  if (pinEl)  pinEl.addEventListener('keydown',  e => { if (e.key === 'Enter') submitLogin(); });
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
