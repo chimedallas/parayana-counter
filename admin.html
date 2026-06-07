@@ -6,7 +6,6 @@
 <title>Parayana Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Cormorant+SC:wght@500;600&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -277,55 +276,45 @@ function openQrModal(eventId, eventTitle) {
   qrModal = { eventId, eventTitle };
   pinModal = null;
   render();
-  // Generate QR after DOM update
-  setTimeout(() => generateQr(eventId), 50);
 }
 
-async function generateQr(eventId) {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas) return;
-  const url = `https://chimedallas.github.io/parayana-counter/join.html?event=${eventId}`;
-  try {
-    await QRCode.toCanvas(canvas, url, {
-      width: 256,
-      margin: 2,
-      color: { dark: '#3A1F0F', light: '#FDF6E3' }
-    });
-  } catch (e) { console.error(e); }
+function qrApiUrl(eventId, size) {
+  const joinUrl = `https://chimedallas.github.io/parayana-counter/join.html?event=${eventId}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&color=3A1F0F&bgcolor=FDF6E3&data=${encodeURIComponent(joinUrl)}`;
 }
 
 function downloadQr() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas) return;
-  const link = document.createElement('a');
-  link.download = `parayana-qr-${qrModal.eventId.slice(0,8)}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+  if (!qrModal) return;
+  const a = document.createElement('a');
+  a.href = qrApiUrl(qrModal.eventId, 512);
+  a.download = `parayana-qr-${qrModal.eventId.slice(0, 8)}.png`;
+  a.target = '_blank';
+  a.click();
 }
 
 function printQr() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas) return;
-  const img = canvas.toDataURL('image/png');
+  if (!qrModal) return;
+  const src   = qrApiUrl(qrModal.eventId, 512);
+  const title = qrModal.eventTitle;
+  const joinUrl = `https://chimedallas.github.io/parayana-counter/join.html?event=${qrModal.eventId}`;
   const win = window.open('', '_blank');
   win.document.write(`
     <html><head><title>Parayana QR Code</title>
     <style>
-      body { font-family: serif; text-align: center; padding: 40px; background: #FDF6E3; }
-      h2 { color: #3A1F0F; font-size: 1.4rem; margin-bottom: 6px; }
-      p  { color: #8B4513; font-size: 0.9rem; margin-bottom: 20px; }
-      img { border: 2px solid #8B4513; border-radius: 8px; padding: 12px; background: #FDF6E3; }
-      .url { margin-top: 14px; font-size: 0.72rem; color: #aaa; word-break: break-all; }
+      body { font-family: serif; text-align: center; padding: 48px; background: #FDF6E3; }
+      h2  { color: #3A1F0F; font-size: 1.5rem; margin-bottom: 6px; }
+      p   { color: #8B4513; font-size: 0.9rem; margin-bottom: 20px; }
+      img { border: 2px solid #8B4513; border-radius: 8px; padding: 14px; background: #fff; }
+      .url { margin-top: 14px; font-size: 0.68rem; color: #aaa; word-break: break-all; }
       @media print { .no-print { display: none; } }
     </style></head>
     <body>
-      <h2>🙏 ${qrModal.eventTitle}</h2>
+      <h2>🙏 ${title}</h2>
       <p>Scan to join and track your recitations</p>
-      <img src="${img}" width="256" height="256" />
-      <div class="url">join.html?event=${qrModal.eventId}</div>
-      <br><button class="no-print" onclick="window.print()">Print</button>
-    </body></html>
-  `);
+      <img src="${src}" width="300" height="300" />
+      <div class="url">${joinUrl}</div>
+      <br><button class="no-print" style="margin-top:16px;padding:8px 20px;cursor:pointer;" onclick="window.print()">Print</button>
+    </body></html>`);
   win.document.close();
 }
 
@@ -613,16 +602,18 @@ function renderPtypesTab() {
 
 function renderQrModal() {
   if (!qrModal) return '';
-  const url = `https://chimedallas.github.io/parayana-counter/join.html?event=${qrModal.eventId}`;
+  const joinUrl = `https://chimedallas.github.io/parayana-counter/join.html?event=${qrModal.eventId}`;
+  const imgSrc  = qrApiUrl(qrModal.eventId, 256);
   return `
     <div class="overlay" onclick="if(event.target===this){qrModal=null;render();}">
       <div class="modal" style="text-align:center;max-width:340px;">
         <h3 style="margin-bottom:6px;">📱 QR CODE</h3>
         <p style="font-size:0.82rem;color:#8B4513;margin-bottom:16px;">${qrModal.eventTitle}</p>
-        <canvas id="qr-canvas" style="border-radius:8px;border:1px solid rgba(139,69,19,0.2);display:block;margin:0 auto 12px;"></canvas>
-        <p style="font-size:0.7rem;color:#aaa;word-break:break-all;margin-bottom:16px;">${url}</p>
+        <img src="${imgSrc}" width="256" height="256"
+          style="border-radius:8px;border:1px solid rgba(139,69,19,0.2);display:block;margin:0 auto 12px;background:#FDF6E3;" />
+        <p style="font-size:0.68rem;color:#aaa;word-break:break-all;margin-bottom:16px;">${joinUrl}</p>
         <p style="font-size:0.82rem;color:#5C2E0A;margin-bottom:16px;line-height:1.5;">
-          Attendees scan this QR code to self-register and track their own recitation count.
+          Attendees scan this to self-register and track their own recitations.
         </p>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="qrModal=null;render()">CLOSE</button>
