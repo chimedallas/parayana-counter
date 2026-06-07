@@ -134,8 +134,27 @@
     background: #4A7C2A; box-shadow: 0 0 6px rgba(74, 124, 42, 0.6);
   }
   .status-dot.syncing { background: #C89B3C; animation: blink 1s ease-in-out infinite; }
-  .status-dot.error { background: #9C2A12; }
+  .status-dot.error   { background: #9C2A12; }
+  .status-dot.offline { background: #9C2A12; }
   @keyframes blink { 50% { opacity: 0.3; } }
+
+  /* Offline banner */
+  .offline-banner {
+    background: rgba(156,42,18,0.1);
+    border: 1px solid rgba(156,42,18,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; font-size: 0.82rem; color: #9C2A12;
+  }
+  .offline-banner .banner-left { display: flex; align-items: center; gap: 8px; }
+  .offline-banner .banner-icon { font-size: 1.1rem; }
+  .offline-flushing {
+    background: rgba(200,155,60,0.1);
+    border-color: rgba(200,155,60,0.4);
+    color: #7A5C10;
+  }
 
   /* Empty state */
   .empty {
@@ -637,6 +656,9 @@ let addInputValue = '';
 let syncStatus   = 'idle'; // 'idle' | 'syncing' | 'error'
 let lastSyncAt   = 0;
 let elapsedStr   = '—';
+let isOnline     = navigator.onLine;
+let offlineQueue = [];   // [{ participantId, delta }] — persisted to localStorage
+let isFlushing   = false;
 let searchQuery  = '';
 let showImportModal = false;
 let importStage  = 'upload'; // 'upload' | 'processing' | 'review' | 'manual'
@@ -682,6 +704,8 @@ async function loadActiveEvent() {
     }
 
     await loadEntries();
+    loadQueue();
+    if (offlineQueue.length > 0 && navigator.onLine) flushQueue();
   } catch (e) {
     console.error('Load event failed', e);
     syncStatus = 'error';
@@ -713,6 +737,84 @@ async function loadEntries() {
     render();
   }
 }
+
+// ============================================================================
+// OFFLINE QUEUE
+// ============================================================================
+function queueKey() {
+  return activeEvent ? `parayana_queue_${activeEvent.id}` : null;
+}
+
+function loadQueue() {
+  const key = queueKey();
+  if (!key) return;
+  try { offlineQueue = JSON.parse(localStorage.getItem(key) || '[]'); } catch { offlineQueue = []; }
+}
+
+function saveQueue() {
+  const key = queueKey();
+  if (!key) return;
+  if (offlineQueue.length === 0) { localStorage.removeItem(key); return; }
+  localStorage.setItem(key, JSON.stringify(offlineQueue));
+}
+
+function enqueue(participantId, delta) {
+  offlineQueue.push({ participantId, delta });
+  saveQueue();
+}
+
+function collapseQueue() {
+  const map = {};
+  for (const { participantId, delta } of offlineQueue) {
+    map[participantId] = (map[participantId] || 0) + delta;
+  }
+  return Object.entries(map)
+    .filter(([, d]) => d !== 0)
+    .map(([participantId, delta]) => ({ participantId, delta }));
+}
+
+function isNetworkError(e) {
+  return !navigator.onLine ||
+    /failed to fetch|networkerror|network request failed/i.test(e?.message || '');
+}
+
+async function flushQueue() {
+  if (!activeEvent || offlineQueue.length === 0 || isFlushing) return;
+  isFlushing = true;
+  render();
+
+  const collapsed = collapseQueue();
+  let allOk = true;
+
+  for (const { participantId, delta } of collapsed) {
+    try {
+      await sb.rpc('update_chant_count', {
+        p_event_id:      activeEvent.id,
+        p_participant_id: participantId,
+        p_delta:          delta
+      });
+    } catch (e) {
+      if (isNetworkError(e)) { allOk = false; break; }
+      console.error('Flush error for', participantId, e);
+    }
+  }
+
+  if (allOk) {
+    offlineQueue = [];
+    saveQueue();
+    // Re-fetch from server to reconcile any drift
+    await loadEntries();
+    syncStatus = 'idle';
+    lastSyncAt = Date.now();
+  }
+
+  isFlushing = false;
+  render();
+}
+
+// Online / offline listeners
+window.addEventListener('online',  () => { isOnline = true;  render(); flushQueue(); });
+window.addEventListener('offline', () => { isOnline = false; render(); });
 
 function subscribeToEvent() {
   sb.channel(`event:${activeEvent.id}`)
@@ -762,15 +864,27 @@ async function increment(participantId) {
   // Optimistic update
   entries = entries.map(e => e.participant_id === participantId ? { ...e, count: e.count + 1 } : e);
   render();
+
+  if (!navigator.onLine) {
+    enqueue(participantId, 1);
+    isOnline = false; render(); return;
+  }
+
   try {
     await sb.rpc('update_chant_count', {
       p_event_id: activeEvent.id, p_participant_id: participantId, p_delta: 1
     });
-    syncStatus = 'idle'; lastSyncAt = Date.now();
+    syncStatus = 'idle'; lastSyncAt = Date.now(); render();
   } catch (e) {
-    console.error('Increment failed', e);
-    entries = entries.map(e => e.participant_id === participantId ? { ...e, count: Math.max(0, e.count - 1) } : e);
-    syncStatus = 'error'; render();
+    if (isNetworkError(e)) {
+      // Network dropped mid-session — queue it, don't rollback
+      enqueue(participantId, 1);
+      isOnline = false; render();
+    } else {
+      console.error('Increment failed', e);
+      entries = entries.map(e => e.participant_id === participantId ? { ...e, count: Math.max(0, e.count - 1) } : e);
+      syncStatus = 'error'; render();
+    }
   }
 }
 
@@ -780,14 +894,26 @@ async function decrement(participantId) {
   if (!entry || entry.count <= 0) return;
   entries = entries.map(e => e.participant_id === participantId ? { ...e, count: Math.max(0, e.count - 1) } : e);
   render();
+
+  if (!navigator.onLine) {
+    enqueue(participantId, -1);
+    isOnline = false; render(); return;
+  }
+
   try {
     await sb.rpc('update_chant_count', {
       p_event_id: activeEvent.id, p_participant_id: participantId, p_delta: -1
     });
+    syncStatus = 'idle'; lastSyncAt = Date.now(); render();
   } catch (e) {
-    console.error('Decrement failed', e);
-    entries = entries.map(e => e.participant_id === participantId ? { ...e, count: e.count + 1 } : e);
-    render();
+    if (isNetworkError(e)) {
+      enqueue(participantId, -1);
+      isOnline = false; render();
+    } else {
+      console.error('Decrement failed', e);
+      entries = entries.map(e => e.participant_id === participantId ? { ...e, count: e.count + 1 } : e);
+      render();
+    }
   }
 }
 
@@ -898,9 +1024,34 @@ function renderHeader() {
 }
 
 function renderStatus() {
+  if (!isOnline || offlineQueue.length > 0)
+    return `<span class="status"><span class="status-dot offline"></span>${offlineQueue.length > 0 ? `${offlineQueue.length} queued` : 'offline'}</span>`;
+  if (isFlushing)             return `<span class="status"><span class="status-dot syncing"></span>syncing…</span>`;
   if (syncStatus === 'syncing') return `<span class="status"><span class="status-dot syncing"></span>syncing</span>`;
-  if (syncStatus === 'error')   return `<span class="status"><span class="status-dot error"></span>offline</span>`;
+  if (syncStatus === 'error')   return `<span class="status"><span class="status-dot error"></span>error</span>`;
   return `<span class="status"><span class="status-dot"></span>synced</span>`;
+}
+
+function renderOfflineBanner() {
+  if (isOnline && offlineQueue.length === 0 && !isFlushing) return '';
+
+  if (isFlushing) {
+    return `<div class="offline-banner offline-flushing">
+      <div class="banner-left"><span class="banner-icon">⟳</span>Syncing ${collapseQueue().length} queued change(s) to server…</div>
+    </div>`;
+  }
+
+  const n = offlineQueue.length;
+  if (!isOnline || n > 0) {
+    return `<div class="offline-banner">
+      <div class="banner-left">
+        <span class="banner-icon">📴</span>
+        <span>${!isOnline ? 'Offline' : 'Reconnected'} — <strong>${n} change${n !== 1 ? 's' : ''}</strong> will sync when back online</span>
+      </div>
+      ${isOnline && n > 0 ? `<button onclick="flushQueue()" style="background:#9C2A12;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-family:inherit;">Sync now</button>` : ''}
+    </div>`;
+  }
+  return '';
 }
 
 function renderStatusOnly() {
@@ -1200,6 +1351,7 @@ function render() {
   app.innerHTML = `
     <div class="container">
       ${renderHeader()}
+      ${renderOfflineBanner()}
       ${renderReadOnlyBanner()}
       ${!activeEvent && !loading
         ? renderNoEvent()

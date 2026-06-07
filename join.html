@@ -212,6 +212,9 @@ let joinBusy     = false;
 let joinError    = '';
 let syncStatus   = 'ok';  // 'ok'|'syncing'|'err'
 let realtimeSub  = null;
+let isOnline     = navigator.onLine;
+let pendingDelta = 0;   // queued delta while offline (single participant)
+let isFlushing   = false;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function esc(s) {
@@ -275,6 +278,8 @@ async function init() {
     myName        = saved.name;
     joined = true;
     await loadMyCount();
+    loadPending();
+    if (pendingDelta !== 0 && navigator.onLine) flushPending();
     screen = 'counting';
     subscribeToEvent();
   } else {
@@ -348,6 +353,7 @@ async function submitJoin() {
     localStorage.setItem(`parayana_join_${eventId}`, JSON.stringify({ participantId: pid, name }));
 
     await loadMyCount();
+    loadPending();
     screen = 'counting';
     subscribeToEvent();
   } catch (e) {
@@ -358,26 +364,66 @@ async function submitJoin() {
   render();
 }
 
+// ── Offline helpers ───────────────────────────────────────────────────────────
+function queueKey() { return eventId && participantId ? `parayana_join_delta_${eventId}_${participantId}` : null; }
+
+function savePending() {
+  const k = queueKey(); if (!k) return;
+  pendingDelta !== 0 ? localStorage.setItem(k, String(pendingDelta)) : localStorage.removeItem(k);
+}
+
+function loadPending() {
+  const k = queueKey(); if (!k) return;
+  pendingDelta = parseInt(localStorage.getItem(k) || '0', 10) || 0;
+}
+
+function isNetworkError(e) {
+  return !navigator.onLine || /failed to fetch|networkerror|network request failed/i.test(e?.message || '');
+}
+
+async function flushPending() {
+  if (!participantId || pendingDelta === 0 || isFlushing) return;
+  isFlushing = true; render();
+  try {
+    await rpc('update_chant_count', {
+      p_event_id: eventId, p_participant_id: participantId, p_delta: pendingDelta
+    });
+    pendingDelta = 0; savePending();
+    syncStatus = 'ok';
+  } catch (e) {
+    if (!isNetworkError(e)) { pendingDelta = 0; savePending(); }
+  }
+  isFlushing = false; render();
+}
+
+window.addEventListener('online',  () => { isOnline = true;  render(); flushPending(); });
+window.addEventListener('offline', () => { isOnline = false; render(); });
+
 // ── Counting ──────────────────────────────────────────────────────────────────
 async function increment() {
   myCount++;
   eventTotal++;
-  syncStatus = 'syncing';
   animateBump();
   render();
 
+  if (!navigator.onLine) {
+    pendingDelta++; savePending();
+    isOnline = false; render(); return;
+  }
+
+  syncStatus = 'syncing'; render();
   try {
     await rpc('update_chant_count', {
-      p_event_id:      eventId,
-      p_participant_id: participantId,
-      p_delta:          1
+      p_event_id: eventId, p_participant_id: participantId, p_delta: 1
     });
     syncStatus = 'ok';
   } catch (e) {
-    myCount--;
-    eventTotal--;
-    syncStatus = 'err';
-    console.error(e);
+    if (isNetworkError(e)) {
+      pendingDelta++; savePending();
+      isOnline = false;
+    } else {
+      myCount--; eventTotal--; syncStatus = 'err';
+    }
   }
   render();
 }
@@ -386,21 +432,26 @@ async function decrement() {
   if (myCount <= 0) return;
   myCount--;
   eventTotal--;
-  syncStatus = 'syncing';
   render();
 
+  if (!navigator.onLine) {
+    pendingDelta--; savePending();
+    isOnline = false; render(); return;
+  }
+
+  syncStatus = 'syncing'; render();
   try {
     await rpc('update_chant_count', {
-      p_event_id:      eventId,
-      p_participant_id: participantId,
-      p_delta:         -1
+      p_event_id: eventId, p_participant_id: participantId, p_delta: -1
     });
     syncStatus = 'ok';
   } catch (e) {
-    myCount++;
-    eventTotal++;
-    syncStatus = 'err';
-    console.error(e);
+    if (isNetworkError(e)) {
+      pendingDelta--; savePending();
+      isOnline = false;
+    } else {
+      myCount++; eventTotal++; syncStatus = 'err';
+    }
   }
   render();
 }
@@ -487,10 +538,14 @@ function buildHTML() {
   }
 
   // counting screen
-  const syncLabel = syncStatus === 'syncing' ? 'syncing…'
+  const offline = !isOnline || pendingDelta !== 0;
+  const syncLabel = isFlushing            ? `syncing ${pendingDelta} queued…`
+                  : offline && pendingDelta !== 0 ? `📴 ${pendingDelta} queued — will sync on reconnect`
+                  : !isOnline             ? '📴 offline'
+                  : syncStatus === 'syncing' ? 'syncing…'
                   : syncStatus === 'err'     ? 'sync error — tap again'
                   : 'synced';
-  const dotClass  = syncStatus;
+  const dotClass  = isFlushing ? 'syncing' : offline ? 'err' : syncStatus;
 
   return `
     ${buildHeader()}
